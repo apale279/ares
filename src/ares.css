@@ -1,0 +1,1066 @@
+:root {
+  --ares-bg: #e8edf3;
+  --ares-surface: #ffffff;
+  --ares-elevated: #f8fafc;
+  --ares-input: #ffffff;
+  --ares-border: #cbd5e1;
+  --ares-text: #0f172a;
+  --ares-muted: #475569;
+  --ares-accent: #0369a1;
+  --ares-accent-dim: #bae6fd;
+  --ares-danger: #b91c1c;
+  --ares-warn: #a16207;
+  --ares-font: 'Segoe UI', system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--ares-font);
+  background: var(--ares-bg);
+  color: var(--ares-text);
+}
+
+.ares-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ares-nav {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--ares-surface);
+  border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-nav button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-elevated);
+  color: var(--ares-text);
+  cursor: pointer;
+}
+
+.ares-nav button.active {
+  border-color: var(--ares-accent);
+  background: rgba(3, 105, 161, 0.12);
+}
+
+.ares-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ares-dashboard {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.ares-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--ares-border);
+  background: var(--ares-surface);
+}
+
+.ares-brand {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 1.1rem;
+}
+
+.ares-topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ares-workspace {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ares-rnd .ares-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--ares-surface);
+  border: 1px solid var(--ares-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+}
+
+.ares-panel-head {
+  padding: 8px 12px;
+  background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
+  border-bottom: 1px solid var(--ares-border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: grab;
+  color: var(--ares-text);
+}
+
+.ares-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  overflow: auto;
+}
+
+.ares-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ares-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.ares-table th,
+.ares-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-table th {
+  color: var(--ares-muted);
+  font-weight: 500;
+}
+
+.ares-click {
+  cursor: pointer;
+}
+
+.ares-click:hover {
+  background: rgba(3, 105, 161, 0.06);
+}
+
+.ares-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.ares-warn {
+  color: var(--ares-warn);
+  margin-left: 4px;
+}
+
+.ares-muted {
+  color: var(--ares-muted);
+  font-size: 0.85rem;
+}
+
+.pad {
+  padding: 8px;
+}
+
+.ares-leaflet {
+  flex: 1;
+  min-height: 160px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--ares-border);
+}
+
+.ares-leaflet--create {
+  cursor: crosshair;
+}
+
+.ares-map-hint {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--ares-warn);
+}
+
+.ares-btn {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  padding: 8px 14px;
+  background: var(--ares-surface);
+  color: var(--ares-text);
+  cursor: pointer;
+}
+
+.ares-btn.small {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.ares-btn.primary {
+  background: var(--ares-accent);
+  border-color: #075985;
+  color: #fff;
+}
+
+.ares-btn.secondary {
+  background: #f1f5f9;
+  color: var(--ares-text);
+}
+
+.ares-btn.ghost {
+  background: transparent;
+}
+
+.ares-btn.warning {
+  border-color: var(--ares-warn);
+  color: var(--ares-warn);
+}
+
+.ares-btn.danger {
+  border-color: var(--ares-danger);
+  color: var(--ares-danger);
+}
+
+.ares-btn.active {
+  outline: 2px solid var(--ares-accent);
+}
+
+.ares-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+}
+
+.ares-modal {
+  width: min(920px, 100%);
+  max-height: calc(100vh - 48px);
+  background: var(--ares-surface);
+  border: 1px solid var(--ares-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  color: var(--ares-text);
+}
+
+.ares-modal--narrow {
+  width: min(520px, 100%);
+}
+
+.ares-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ares-modal-scroll {
+  padding: 16px;
+  overflow: auto;
+}
+
+.ares-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ares-form-grid.tight {
+  gap: 8px;
+}
+
+.ares-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.ares-form-grid label,
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ares-muted);
+}
+
+.ares-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ares-muted);
+  margin-bottom: 6px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-input);
+  color: var(--ares-text);
+}
+
+.ares-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  grid-column: 1 / -1;
+}
+
+.ares-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  grid-column: 1 / -1;
+}
+
+.ares-row label {
+  flex: 1;
+  min-width: 120px;
+}
+
+.ares-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ares-seg-btn {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-input);
+  color: var(--ares-text);
+  cursor: pointer;
+}
+
+.ares-seg-btn.active {
+  border-color: var(--ares-accent);
+  background: rgba(3, 105, 161, 0.12);
+}
+
+.ares-codice-bar {
+  height: 6px;
+  border-radius: 4px;
+  grid-column: 1 / -1;
+}
+
+.ares-hr {
+  border: none;
+  border-top: 1px solid var(--ares-border);
+  margin: 16px 0;
+}
+
+.ares-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ares-inline.space-between {
+  justify-content: space-between;
+}
+
+.ares-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ares-card {
+  border: 1px solid var(--ares-border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--ares-elevated);
+}
+
+.ares-card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ares-details {
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.ares-patient-block {
+  margin-bottom: 12px;
+}
+
+.ares-nested {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ares-border);
+}
+
+.float-right {
+  float: right;
+}
+
+.ares-danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ares-modal-actions {
+  margin-top: 16px;
+}
+
+.ares-settings {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.ares-settings-block {
+  margin-bottom: 24px;
+}
+
+.ares-chip-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ares-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--ares-elevated);
+  border: 1px solid var(--ares-border);
+  font-size: 0.85rem;
+}
+
+.ares-settings-mezzi {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .ares-settings-mezzi {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ares-mezzi-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ares-mezzi-list li {
+  margin-bottom: 4px;
+}
+
+.ares-link {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ares-text);
+  cursor: pointer;
+}
+
+.ares-link:hover {
+  background: rgba(3, 105, 161, 0.08);
+}
+
+.ares-link.active {
+  border-color: var(--ares-accent);
+}
+
+.ares-mezzo-form {
+  margin-bottom: 12px;
+}
+
+.ares-fieldset {
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.ares-fieldset legend {
+  padding: 0 6px;
+  font-size: 0.8rem;
+  color: var(--ares-muted);
+}
+
+.leaflet-container {
+  font-family: var(--ares-font);
+}
+
+.ares-modal-stack {
+  z-index: 1100;
+}
+
+.ares-link-mission {
+  font: inherit;
+  background: none;
+  border: none;
+  color: var(--ares-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.ares-link-mission:hover {
+  color: #0c4a6e;
+}
+
+.ares-list-compact {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ares-patient-compact {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-input);
+  color: var(--ares-text);
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ares-patient-compact:hover {
+  border-color: var(--ares-accent);
+}
+
+.ares-patient-compact-id {
+  font-size: 0.75rem;
+  color: var(--ares-muted);
+  font-family: ui-monospace, monospace;
+}
+
+.ares-mezzo-row--disponibile {
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.ares-mezzo-row--occupato {
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.ares-mezzo-row--non_disponibile {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.ares-table-compact td {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.ares-timeline {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.ares-timeline li {
+  margin-bottom: 6px;
+}
+
+.ares-settings-entity-block {
+  margin-bottom: 40px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-settings-entity-title {
+  font-size: 1.15rem;
+  margin: 0 0 16px;
+  color: var(--ares-text);
+}
+
+.ares-settings-entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.ares-settings-entity-panel {
+  border: 1px solid var(--ares-border);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--ares-surface);
+}
+
+.ares-settings-entity-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.ares-settings-textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  margin-bottom: 10px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.ares-mezzi-settings-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ares-mezzo-mini-map {
+  margin: 12px 0;
+}
+
+.ares-mezzo-mini-map-hint {
+  font-size: 0.75rem;
+  margin: 0 0 6px;
+}
+
+/* Scheda evento / layout sezioni */
+.ares-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-section:last-of-type {
+  border-bottom: none;
+}
+
+.ares-section--danger {
+  border-bottom-color: rgba(185, 28, 28, 0.25);
+}
+
+.ares-section-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ares-text);
+}
+
+.ares-stack-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ares-btn-row-2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ares-btn-row-2 .ares-btn {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* Dashboard missioni raggruppate */
+.ares-mezzo-group-row td {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ares-muted);
+  background: var(--ares-elevated);
+  border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-mission-group-row td {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ares-muted);
+  background: var(--ares-elevated);
+  border-bottom: 1px solid var(--ares-border);
+}
+
+/* Ricerca */
+.ares-search-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.ares-search-list li {
+  margin-bottom: 8px;
+}
+
+.ares-pre-small {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  background: var(--ares-elevated);
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  color: var(--ares-text);
+}
+
+/* Suggerimenti indirizzo (Nominatim) */
+.ares-suggest-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.ares-suggest-wrap > input {
+  width: 100%;
+}
+
+.ares-suggest-loading {
+  display: block;
+  margin-top: 4px;
+}
+
+.ares-suggest-list {
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--ares-surface);
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.ares-suggest-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ares-text);
+  cursor: pointer;
+}
+
+.ares-suggest-item:hover {
+  background: var(--ares-elevated);
+}
+
+/* Photon: campo indirizzo (popover) */
+.ares-photon-field {
+  position: relative;
+  width: 100%;
+}
+
+.ares-photon-trigger-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-input);
+  overflow: hidden;
+}
+
+.ares-photon-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ares-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ares-photon-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ares-photon-trigger-icon {
+  flex-shrink: 0;
+  color: var(--ares-accent);
+}
+
+.ares-photon-trigger-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.ares-photon-placeholder {
+  color: var(--ares-muted);
+  font-size: 0.88rem;
+}
+
+.ares-photon-clear {
+  flex-shrink: 0;
+  width: 40px;
+  min-height: 42px;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--ares-border);
+  background: transparent;
+  color: var(--ares-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ares-photon-clear:hover {
+  background: var(--ares-elevated);
+  color: var(--ares-text);
+}
+
+.ares-photon-popover {
+  position: absolute;
+  z-index: 80;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  border: 1px solid var(--ares-border);
+  border-radius: 10px;
+  background: var(--ares-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.ares-photon-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ares-border);
+  background: var(--ares-elevated);
+}
+
+.ares-photon-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-input);
+  color: var(--ares-text);
+}
+
+.ares-photon-loader {
+  flex-shrink: 0;
+  color: var(--ares-accent);
+  animation: ares-spin 0.9s linear infinite;
+}
+
+@keyframes ares-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ares-photon-results {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.ares-photon-empty {
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: var(--ares-muted);
+}
+
+.ares-photon-result-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ares-text);
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.ares-photon-result-btn:hover {
+  background: var(--ares-elevated);
+}
+
+/* Valutazioni MSB / MSA compatte (scheda paziente) */
+.ares-val-actions {
+  flex-wrap: wrap;
+}
+
+.ares-val-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 640px) {
+  .ares-val-dual {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ares-val-col {
+  min-width: 0;
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--ares-elevated);
+}
+
+.ares-val-col-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ares-muted);
+  margin-bottom: 6px;
+}
+
+.ares-val-empty {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.ares-val-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-input);
+  color: var(--ares-text);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ares-val-chip:hover {
+  border-color: var(--ares-accent);
+}
+
+.ares-val-chip.active {
+  border-color: var(--ares-accent);
+  background: rgba(3, 105, 161, 0.08);
+}
+
+.ares-val-chip-ts {
+  font-family: ui-monospace, monospace;
+  color: var(--ares-muted);
+  font-size: 0.7rem;
+}
+
+.ares-val-chip-txt {
+  line-height: 1.25;
+}
+
+.ares-val-pma-block {
+  margin-bottom: 12px;
+  padding: 8px;
+  border: 1px dashed var(--ares-border);
+  border-radius: 8px;
+}
+
+.ares-val-pma-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ares-val-pma-chips .ares-val-chip {
+  width: auto;
+  min-width: 120px;
+  margin-bottom: 0;
+}
