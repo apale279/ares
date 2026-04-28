@@ -91,6 +91,20 @@ body {
   font-size: 1.1rem;
 }
 
+.ares-font-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ares-btn-icon {
+  min-width: 38px;
+  padding: 8px 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .ares-topbar-actions {
   display: flex;
   flex-wrap: wrap;

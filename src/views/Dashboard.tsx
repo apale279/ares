@@ -1,4 +1,10 @@
 import { Fragment, useMemo, useState } from 'react'
+import {
+  adjustFontStep,
+  FONT_STEP_MAX,
+  FONT_STEP_MIN,
+  getFontStep,
+} from '../utils/fontScale'
 import { DraggablePanel } from '../components/DraggablePanel'
 import { EventsMap } from '../components/EventsMap'
 import { CreateEventModal } from '../components/CreateEventModal'
@@ -22,6 +28,7 @@ export function Dashboard() {
     lng: number
   } | null>(null)
   const [mapCreateMode, setMapCreateMode] = useState(false)
+  const [fontStep, setFontStep] = useState(() => getFontStep())
 
   const eventiAperti = useMemo(
     () => eventi.filter((e) => e.stato !== 'CHIUSO'),
@@ -121,6 +128,28 @@ export function Dashboard() {
           >
             Reset vista
           </button>
+          <span className="ares-font-zoom" aria-label="Dimensione testo">
+            <button
+              type="button"
+              className="ares-btn ghost ares-btn-icon"
+              title="Aumenta testo"
+              aria-label="Aumenta testo"
+              disabled={fontStep >= FONT_STEP_MAX}
+              onClick={() => setFontStep(adjustFontStep(1))}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="ares-btn ghost ares-btn-icon"
+              title="Riduci testo"
+              aria-label="Riduci testo"
+              disabled={fontStep <= FONT_STEP_MIN}
+              onClick={() => setFontStep(adjustFontStep(-1))}
+            >
+              −
+            </button>
+          </span>
           <button
             type="button"
             className={`ares-btn secondary${mapCreateMode ? ' active' : ''}`}
