@@ -199,8 +199,7 @@ export function Dashboard() {
               <thead>
                 <tr>
                   <th />
-                  <th>Missione</th>
-                  <th>Evento</th>
+                  <th>Luogo evento</th>
                   <th>Mezzo</th>
                   <th>Stato</th>
                   <th />
@@ -211,11 +210,12 @@ export function Dashboard() {
                   <Fragment key={eventoId}>
                     {showGroupHeader && (
                       <tr className="ares-mission-group-row">
-                        <td colSpan={6}>Evento {eventoId}</td>
+                        <td colSpan={5}>Evento {eventoId}</td>
                       </tr>
                     )}
                     {rows.map((m) => {
                       const mz = mezzi.find((x) => x.id === m.mezzoId)
+                      const ev = eventi.find((x) => x.id === m.eventoId)
                       const warn = m.stato === 'ALLERTARE'
                       return (
                         <tr key={m.id}>
@@ -230,18 +230,9 @@ export function Dashboard() {
                             <button
                               type="button"
                               className="ares-link-mission"
-                              onClick={() => openModalMissione(m.id)}
-                            >
-                              {m.id}
-                            </button>
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="ares-link-mission"
                               onClick={() => openModalEvento(m.eventoId)}
                             >
-                              {m.eventoId}
+                              {ev?.indirizzo?.trim() || `Evento ${m.eventoId}`}
                             </button>
                           </td>
                           <td>{mz?.sigla ?? '—'}</td>
