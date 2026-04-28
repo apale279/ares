@@ -144,6 +144,11 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                     evento.lat != null && evento.lng != null ? '' : evento.indirizzo
                   }
                   placeholder="Cerca un indirizzo in Italia (via, piazza, comune…)"
+                  onDraftCommit={(text) =>
+                    updateEvento(evento.id, {
+                      indirizzo: text,
+                    })
+                  }
                   onChange={(hit) => {
                     if (!hit) {
                       updateEvento(evento.id, {

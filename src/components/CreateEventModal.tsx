@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CodiceEvento, TipoEvento } from '../types'
 import { dettagliPerTipo, useAresStore } from '../store/aresStore'
 import { geocodeIndirizzo } from '../utils/geocode'
@@ -14,6 +14,9 @@ export function CreateEventModal({
   onClose: () => void
 }) {
   const addEvento = useAresStore((s) => s.addEvento)
+  const addMissione = useAresStore((s) => s.addMissione)
+  const updatePaziente = useAresStore((s) => s.updatePaziente)
+  const mezzi = useAresStore((s) => s.mezzi)
   const impostazioni = useAresStore((s) => s.impostazioni)
 
   const [indirizzoLimitato, setIndirizzoLimitato] = useState(false)
@@ -31,11 +34,20 @@ export function CreateEventModal({
   const [codice, setCodice] = useState<CodiceEvento>('GIALLO')
   const [segnalatoDa, setSegnalatoDa] = useState('')
   const [geoBusy, setGeoBusy] = useState(false)
+  const [mezzoMissione, setMezzoMissione] = useState('')
+  const [pazNome, setPazNome] = useState('')
+  const [pazCognome, setPazCognome] = useState('')
+  const [pazDataNascita, setPazDataNascita] = useState('')
+  const [pazNote, setPazNote] = useState('')
 
   const dettagli = dettagliPerTipo(impostazioni, tipoEvento)
+  const mezziDisponibili = useMemo(
+    () => mezzi.filter((m) => m.stato === 'DISPONIBILE'),
+    [mezzi],
+  )
 
   const submit = () => {
-    addEvento({
+    const eventoId = addEvento({
       indirizzoLimitato,
       indirizzo,
       lat: indirizzoLimitato ? null : lat,
@@ -46,6 +58,25 @@ export function CreateEventModal({
       codice,
       segnalatoDa,
     })
+
+    // addEvento crea sempre un primo paziente vuoto: lo compiliamo subito.
+    const autoPaziente = [...useAresStore.getState().pazienti]
+      .reverse()
+      .find((p) => p.eventoId === eventoId)
+    if (autoPaziente) {
+      updatePaziente(autoPaziente.id, {
+        nome: pazNome.trim(),
+        cognome: pazCognome.trim(),
+        dataNascita: pazDataNascita,
+        note: pazNote.trim(),
+      })
+    }
+
+    if (mezzoMissione) {
+      const esitoMissione = addMissione(eventoId, mezzoMissione)
+      if (!esitoMissione.ok) alert(esitoMissione.reason)
+    }
+
     onClose()
   }
 
@@ -88,6 +119,9 @@ export function CreateEventModal({
                 }
                 previewText={lat != null && lng != null ? '' : indirizzo}
                 placeholder="Cerca un indirizzo in Italia (via, piazza, comune…)"
+                onDraftCommit={(text) => {
+                  setIndirizzo(text)
+                }}
                 onChange={(hit) => {
                   if (!hit) {
                     setIndirizzo('')
@@ -202,6 +236,58 @@ export function CreateEventModal({
               onChange={(e) => setSegnalatoDa(e.target.value)}
             />
           </label>
+          <section className="ares-section">
+            <h3 className="ares-section-title">Missione iniziale (opzionale)</h3>
+            <label>
+              Mezzo da inviare subito
+              <select
+                value={mezzoMissione}
+                onChange={(e) => setMezzoMissione(e.target.value)}
+              >
+                <option value="">Nessuno</option>
+                {mezziDisponibili.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.sigla} ({m.tipo})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+          <section className="ares-section">
+            <h3 className="ares-section-title">Primo paziente (facoltativo)</h3>
+            <div className="ares-form-grid tight">
+              <label>
+                Nome
+                <input
+                  value={pazNome}
+                  onChange={(e) => setPazNome(e.target.value)}
+                />
+              </label>
+              <label>
+                Cognome
+                <input
+                  value={pazCognome}
+                  onChange={(e) => setPazCognome(e.target.value)}
+                />
+              </label>
+              <label>
+                Data nascita
+                <input
+                  type="date"
+                  value={pazDataNascita}
+                  onChange={(e) => setPazDataNascita(e.target.value)}
+                />
+              </label>
+            </div>
+            <label>
+              Note paziente
+              <textarea
+                rows={2}
+                value={pazNote}
+                onChange={(e) => setPazNote(e.target.value)}
+              />
+            </label>
+          </section>
           <div className="ares-modal-actions">
             <button type="button" className="ares-btn primary" onClick={submit}>
               Crea evento

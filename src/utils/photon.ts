@@ -1,7 +1,8 @@
 /**
- * Autocomplete indirizzi tramite Photon (Komoot).
- * @see https://photon.komoot.io
+ * Autocomplete indirizzi tramite Mapbox Geocoding API.
+ * @see https://docs.mapbox.com/api/search/geocoding/
  */
+import { suggerisciIndirizzi } from './geocode'
 
 export type PhotonAddressValue = {
   display_name: string
@@ -9,53 +10,26 @@ export type PhotonAddressValue = {
   lon: number
 }
 
-/** Bbox Italia (lon min, lat min, lon max, lat max) per privilegiare risultati sul territorio */
-const BBOX_ITALIA = '6.627,35.492,18.784,47.091'
+const MAPBOX_TOKEN =
+  import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN ||
+  'pk.eyJ1IjoiYXBhbGUyNzkiLCJhIjoiY21vN3Fmd2ttMDd6cTJyc2Jqa3N0bWRsYiJ9.RaNbMYgNHeBetAGb2psU7wC'
 
-type PhotonFeature = {
-  geometry?: { type: string; coordinates?: [number, number] }
-  properties?: Record<string, unknown>
+type MapboxFeature = {
+  place_name?: string
+  center?: [number, number]
 }
 
-type PhotonResponse = {
-  features?: PhotonFeature[]
+type MapboxResponse = {
+  features?: MapboxFeature[]
 }
 
-function buildDisplayName(p: Record<string, unknown>): string {
-  const name = p.name != null ? String(p.name) : ''
-  const street = p.street != null ? String(p.street) : ''
-  const hn = p.housenumber != null ? String(p.housenumber) : ''
-  const line1 = [hn, street].filter(Boolean).join(' ').trim()
-  const locality =
-    (p.city as string) ||
-    (p.town as string) ||
-    (p.village as string) ||
-    (p.locality as string) ||
-    (p.district as string) ||
-    ''
-  const pc = p.postcode != null ? String(p.postcode) : ''
-  const state = (p.state as string) || (p.county as string) || ''
-  const country = p.country != null ? String(p.country) : ''
-
-  const parts: string[] = []
-  if (line1) parts.push(line1)
-  else if (name) parts.push(name)
-  if (locality) parts.push(locality)
-  if (pc) parts.push(pc)
-  if (state) parts.push(state)
-  if (country) parts.push(country)
-  const joined = parts.filter(Boolean).join(', ')
-  return joined || name || 'Indirizzo'
-}
-
-function featureToHit(f: PhotonFeature): PhotonAddressValue | null {
-  const coords = f.geometry?.coordinates
+function featureToHit(f: MapboxFeature): PhotonAddressValue | null {
+  const coords = f.center
   if (!coords || coords.length < 2) return null
   const [lon, lat] = coords
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
-  const props = f.properties ?? {}
   return {
-    display_name: buildDisplayName(props),
+    display_name: String(f.place_name ?? '').trim() || 'Indirizzo',
     lat,
     lon,
   }
@@ -76,26 +50,42 @@ export async function searchPhoton(
   const q = query.trim()
   if (q.length < 2) return []
 
-  const {
-    limit = 8,
-    lang = 'it',
-    boundedItaly = true,
-  } = options
+  const { limit = 8, lang = 'it', boundedItaly = true } = options
+  if (!MAPBOX_TOKEN) {
+    const fallback = await suggerisciIndirizzi(q, limit)
+    return fallback.map((x) => ({
+      display_name: x.displayName,
+      lat: x.lat,
+      lon: x.lng,
+    }))
+  }
 
-  const url = new URL('https://photon.komoot.io/api/')
-  url.searchParams.set('q', q)
-  url.searchParams.set('lang', lang)
-  url.searchParams.set('limit', String(limit))
+  const encoded = encodeURIComponent(q)
+  const url = new URL(
+    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`,
+  )
+  url.searchParams.set('access_token', MAPBOX_TOKEN)
+  url.searchParams.set('autocomplete', 'true')
+  url.searchParams.set('language', lang)
+  url.searchParams.set('limit', String(Math.max(1, Math.min(limit, 10))))
   if (boundedItaly) {
-    url.searchParams.set('bbox', BBOX_ITALIA)
+    url.searchParams.set('country', 'it')
   }
 
   const res = await fetch(url.toString(), {
     headers: { Accept: 'application/json' },
   })
-  if (!res.ok) return []
+  if (!res.ok) {
+    // Token invalido / rate limit: fallback su Nominatim per non bloccare l'utente.
+    const fallback = await suggerisciIndirizzi(q, limit)
+    return fallback.map((x) => ({
+      display_name: x.displayName,
+      lat: x.lat,
+      lon: x.lng,
+    }))
+  }
 
-  const data = (await res.json()) as PhotonResponse
+  const data = (await res.json()) as MapboxResponse
   const features = data.features ?? []
   const out: PhotonAddressValue[] = []
   for (const f of features) {

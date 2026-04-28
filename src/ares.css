@@ -207,6 +207,55 @@ body {
   color: var(--ares-warn);
 }
 
+.ares-map-search {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: min(420px, calc(100% - 20px));
+  z-index: 2500;
+}
+
+.ares-map-search-input {
+  width: 100%;
+  background: #fff;
+}
+
+.ares-map-search-menu {
+  margin-top: 4px;
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.ares-map-search-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ares-text);
+}
+
+.ares-map-search-item:last-child {
+  border-bottom: none;
+}
+
+.ares-map-search-item:hover {
+  background: var(--ares-elevated);
+}
+
+.ares-map-search-empty {
+  padding: 8px 10px;
+  color: var(--ares-muted);
+  font-size: 0.85rem;
+}
+
 .ares-btn {
   font: inherit;
   border-radius: 8px;
@@ -816,42 +865,21 @@ textarea {
   background: var(--ares-elevated);
 }
 
-/* Photon: campo indirizzo (popover) */
+/* Photon: campo indirizzo (autocomplete) */
 .ares-photon-field {
   position: relative;
   width: 100%;
 }
 
-.ares-photon-trigger-wrap {
+.ares-photon-input-wrap {
   display: flex;
-  align-items: stretch;
-  gap: 0;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   border-radius: 8px;
   border: 1px solid var(--ares-border);
   background: var(--ares-input);
-  overflow: hidden;
-}
-
-.ares-photon-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  min-height: 42px;
-  padding: 8px 12px;
-  border: none;
-  background: transparent;
-  color: var(--ares-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.ares-photon-trigger:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+  padding: 0 8px;
 }
 
 .ares-photon-trigger-icon {
@@ -859,27 +887,12 @@ textarea {
   color: var(--ares-accent);
 }
 
-.ares-photon-trigger-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.9rem;
-}
-
-.ares-photon-placeholder {
-  color: var(--ares-muted);
-  font-size: 0.88rem;
-}
-
 .ares-photon-clear {
   flex-shrink: 0;
-  width: 40px;
-  min-height: 42px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: none;
-  border-left: 1px solid var(--ares-border);
   background: transparent;
   color: var(--ares-muted);
   font-size: 1.2rem;
@@ -894,7 +907,7 @@ textarea {
 
 .ares-photon-popover {
   position: absolute;
-  z-index: 80;
+  z-index: 2000;
   left: 0;
   right: 0;
   top: calc(100% + 6px);
@@ -905,23 +918,14 @@ textarea {
   overflow: hidden;
 }
 
-.ares-photon-popover-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--ares-border);
-  background: var(--ares-elevated);
-}
-
 .ares-photon-input {
   flex: 1;
   min-width: 0;
   font: inherit;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--ares-border);
-  background: var(--ares-input);
+  padding: 9px 4px;
+  border: none;
+  outline: none;
+  background: transparent;
   color: var(--ares-text);
 }
 
@@ -967,6 +971,10 @@ textarea {
 
 .ares-photon-result-btn:hover {
   background: var(--ares-elevated);
+}
+
+.ares-photon-result-btn.is-active {
+  background: var(--ares-accent-dim);
 }
 
 /* Valutazioni MSB / MSA compatte (scheda paziente) */
@@ -1074,4 +1082,54 @@ textarea {
   font-size: 1.1rem;
   color: var(--ares-muted);
   background: var(--ares-bg);
+}
+
+.ares-mezzo-vista {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 8px;
+}
+
+.ares-mezzo-card {
+  background: var(--ares-surface);
+  border: 1px solid var(--ares-border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.ares-mezzo-card h2 {
+  margin: 0 0 8px 0;
+}
+
+.ares-mezzo-block {
+  border: 1px solid var(--ares-border);
+  border-radius: 10px;
+  padding: 10px;
+  margin-top: 10px;
+  background: var(--ares-elevated);
+}
+
+.ares-mezzo-block h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+}
+
+.ares-mezzo-block p {
+  margin: 6px 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .ares-mezzo-vista {
+    padding: 4px;
+  }
+  .ares-mezzo-card {
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .ares-mezzo-block p {
+    font-size: 1rem;
+  }
 }

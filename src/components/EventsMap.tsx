@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   CircleMarker,
   MapContainer,
@@ -11,6 +11,7 @@ import '../map/leafletSetup'
 import { CODICE_EVENTO_COLOR } from '../constants'
 import type { Evento } from '../types'
 import { useAresStore } from '../store/aresStore'
+import { searchPhoton } from '../utils/photon'
 
 function MapFocusHandler() {
   const map = useMap()
@@ -53,6 +54,72 @@ function ResizeInvalidate() {
     return () => ro.disconnect()
   }, [map, container])
   return null
+}
+
+function MapSearchControl() {
+  const map = useMap()
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<
+    { display_name: string; lat: number; lon: number }[]
+  >([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setResults([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    const t = window.setTimeout(() => {
+      searchPhoton(q, { limit: 8, lang: 'it', boundedItaly: true })
+        .then((hits) => setResults(hits))
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false))
+    }, 300)
+    return () => window.clearTimeout(t)
+  }, [query])
+
+  const pick = (hit: { display_name: string; lat: number; lon: number }) => {
+    map.flyTo([hit.lat, hit.lon], 16, { duration: 0.7 })
+    setQuery(hit.display_name)
+    setOpen(false)
+  }
+
+  return (
+    <div className="ares-map-search" onMouseDown={(e) => e.stopPropagation()}>
+      <input
+        className="ares-map-search-input"
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          setOpen(true)
+        }}
+        placeholder="Cerca luogo sulla mappa..."
+      />
+      {open && (results.length > 0 || loading || query.trim().length >= 2) && (
+        <div className="ares-map-search-menu">
+          {loading && <div className="ares-map-search-empty">Ricerca in corso...</div>}
+          {!loading && results.length === 0 && query.trim().length >= 2 && (
+            <div className="ares-map-search-empty">Nessun risultato</div>
+          )}
+          {results.map((hit, i) => (
+            <button
+              key={`${hit.lat}-${hit.lon}-${i}`}
+              type="button"
+              className="ares-map-search-item"
+              onClick={() => pick(hit)}
+            >
+              {hit.display_name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export type PuntoMappaMezzo = {
@@ -105,6 +172,7 @@ export function EventsMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapSearchControl />
       <ClickToCreateEvent
         enabled={createMode}
         onPick={onMapCreateClick}
