@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { DEFAULT_IMPOSTAZIONI, MISSION_STATE_ORDER } from '../constants'
 import {
   computeDefaultLayout,
@@ -36,6 +36,10 @@ import {
   nuovoIdMissione,
   nuovoIdPaziente,
 } from '../utils/ids'
+import {
+  createSupabaseJsonStorage,
+  isSupabaseConfigured,
+} from './supabasePersistStorage'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -501,7 +505,10 @@ export const useAresStore = create<AresState>()(
       },
     }),
     {
-      name: 'ares-local-storage',
+      name: isSupabaseConfigured() ? 'ares-supabase' : 'ares-local-storage',
+      storage: isSupabaseConfigured()
+        ? createJSONStorage(() => createSupabaseJsonStorage())
+        : createJSONStorage(() => localStorage),
       partialize: (s) => ({
         impostazioni: s.impostazioni,
         eventi: s.eventi,

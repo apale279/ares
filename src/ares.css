@@ -1064,3 +1064,14 @@ textarea {
   min-width: 120px;
   margin-bottom: 0;
 }
+
+.ares-bootstrap-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ares-font);
+  font-size: 1.1rem;
+  color: var(--ares-muted);
+  background: var(--ares-bg);
+}
