@@ -109,6 +109,7 @@ export interface AresState {
   updateTrattaMissione: (missioneId: string, trattaId: string, patch: Partial<TrattaMissione>) => void
   deleteTrattaMissione: (missioneId: string, trattaId: string) => void
   avanzaMissione: (missioneId: string) => void
+  requestMissionTelegramDispatch: (missioneId: string) => void
   /** Imposta FINE_MISSIONE e libera il mezzo (stesso effetto dell’ultimo stato). */
   terminaMissione: (missioneId: string) => void
   deleteMissione: (missioneId: string) => void
@@ -117,7 +118,13 @@ export interface AresState {
   updatePaziente: (id: string, patch: Partial<Paziente>) => void
   deletePaziente: (id: string) => void
 
-  addNota: (input: { titolo: string; testo: string; stato?: StatoNota; importante?: boolean }) => string
+  addNota: (input: {
+    titolo: string
+    testo: string
+    stato?: StatoNota
+    importante?: boolean
+    telegramBroadcastRequestedAt?: string | null
+  }) => string
   updateNota: (id: string, patch: Partial<Nota>) => void
   deleteNota: (id: string) => void
 
@@ -361,6 +368,7 @@ export const useAresStore = create<AresState>()(
           stato: 'ALLERTARE',
           statoHistory: [log],
           tratte: [],
+          telegramDispatchRequestedAt: null,
         }
         set({
           missioni: [...s.missioni, missione],
@@ -465,6 +473,19 @@ export const useAresStore = create<AresState>()(
         if (next === m.stato) return
         get().updateMissioneStato(missioneId, next)
       },
+      requestMissionTelegramDispatch: (missioneId) =>
+        set((s) => ({
+          missioni: s.missioni.map((m) =>
+            m.id === missioneId
+              ? {
+                  ...m,
+                  telegramDispatchRequestedAt: `${nowIso()}_${Math.random()
+                    .toString(36)
+                    .slice(2, 8)}`,
+                }
+              : m,
+          ),
+        })),
 
       terminaMissione: (missioneId) => {
         const m = get().missioni.find((x) => x.id === missioneId)
@@ -545,6 +566,7 @@ export const useAresStore = create<AresState>()(
           testo: input.testo.trim(),
           stato: input.stato ?? 'APERTA',
           importante: input.importante ?? false,
+          telegramBroadcastRequestedAt: input.telegramBroadcastRequestedAt ?? null,
         }
         set((s) => ({ note: [nota, ...s.note] }))
         return nota.id
@@ -674,6 +696,7 @@ export const useAresStore = create<AresState>()(
             destinazione: t.destinazione ?? '',
             descrizione: t.descrizione ?? '',
           })),
+          telegramDispatchRequestedAt: m.telegramDispatchRequestedAt ?? null,
         }))
         out.note = (out.note ?? []).map((n) => ({
           id: n.id,
@@ -682,6 +705,7 @@ export const useAresStore = create<AresState>()(
           testo: n.testo ?? '',
           stato: n.stato ?? 'APERTA',
           importante: n.importante ?? false,
+          telegramBroadcastRequestedAt: n.telegramBroadcastRequestedAt ?? null,
         }))
         out.valutazioni = migrateValutazioni(
           (p as { valutazioni?: unknown }).valutazioni,

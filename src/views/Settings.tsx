@@ -84,7 +84,7 @@ export function Settings() {
       <h1>Impostazioni</h1>
       <p className="ares-muted">
         Pannelli separati per entità. Gli elenchi si modificano con testo su più
-        righe (una voce per riga). I dati restano in locale nel browser.
+        righe (una voce per riga). I dati vengono persistiti su cloud quando configurato.
       </p>
 
       <section className="ares-settings-entity-block">
@@ -455,13 +455,26 @@ export function Settings() {
         <button
           type="button"
           className="ares-btn ghost"
-          onClick={() =>
+          onClick={() => {
+            if (
+              !confirm(
+                'Ripristinare solo gli elenchi clinici predefiniti? Utenti, rank, tipi mezzo, ospedali e PMA non verranno toccati.',
+              )
+            )
+              return
             setImpostazioni({
-              ...DEFAULT_IMPOSTAZIONI,
+              dettagliMedico: DEFAULT_IMPOSTAZIONI.dettagliMedico,
+              dettagliTrauma: DEFAULT_IMPOSTAZIONI.dettagliTrauma,
+              dettagliNonNoto: DEFAULT_IMPOSTAZIONI.dettagliNonNoto,
+              manovreMSB: DEFAULT_IMPOSTAZIONI.manovreMSB,
+              manovreMSA: DEFAULT_IMPOSTAZIONI.manovreMSA,
+              manovrePMA: DEFAULT_IMPOSTAZIONI.manovrePMA,
+              presetDimissione: DEFAULT_IMPOSTAZIONI.presetDimissione,
+              mediciPma: DEFAULT_IMPOSTAZIONI.mediciPma,
             })
-          }
+          }}
         >
-          Ripristina elenchi predefiniti
+          Ripristina elenchi clinici predefiniti
         </button>
       </div>
 

@@ -63,6 +63,25 @@ export function Diario() {
     resetDraft()
   }
 
+  const inviaATutti = () => {
+    const payload = {
+      titolo: draft.titolo.trim(),
+      testo: draft.testo.trim(),
+      stato: draft.stato,
+      importante: draft.importante,
+      telegramBroadcastRequestedAt: new Date().toISOString(),
+    }
+    if (!payload.titolo) return
+    if (editingId) {
+      updateNota(editingId, payload)
+      resetDraft()
+      return
+    }
+    const id = addNota(payload)
+    updateNota(id, { telegramBroadcastRequestedAt: payload.telegramBroadcastRequestedAt })
+    resetDraft()
+  }
+
   const noteAperte = noteOrdinate.filter((n) => n.stato !== 'CHIUSA')
   const noteChiuse = noteOrdinate.filter((n) => n.stato === 'CHIUSA')
 
@@ -138,6 +157,9 @@ export function Diario() {
           <div className="ares-inline">
             <button type="button" className="ares-btn primary" onClick={salva}>
               {editingId ? 'Salva modifiche' : 'Aggiungi nota'}
+            </button>
+            <button type="button" className="ares-btn secondary" onClick={inviaATutti}>
+              Invia a tutti
             </button>
             <button type="button" className="ares-btn ghost" onClick={resetDraft}>
               Chiudi editor

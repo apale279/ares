@@ -1,5 +1,6 @@
 import { LABEL_STATO_MISSIONE } from '../constants'
 import { useAresStore } from '../store/aresStore'
+import { shortAddress } from '../utils/address'
 import { formatDataOra } from '../utils/format'
 import { useState } from 'react'
 
@@ -98,7 +99,7 @@ export function MissionDetailModal({
             >
               {missione.eventoId}
             </button>
-            {evento && ` · ${evento.indirizzo || '—'}`}
+            {evento && ` · ${shortAddress(evento.indirizzo) || '—'}`}
           </p>
           <p className="ares-muted">Codice missione: {missione.codice}</p>
           <p className="ares-muted">

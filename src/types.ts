@@ -85,6 +85,7 @@ export interface Nota {
   testo: string
   stato: StatoNota
   importante: boolean
+  telegramBroadcastRequestedAt?: string | null
 }
 
 export interface MissionStateLog {
@@ -102,6 +103,7 @@ export interface Missione {
   stato: StatoMissione
   statoHistory: MissionStateLog[]
   tratte: TrattaMissione[]
+  telegramDispatchRequestedAt?: string | null
 }
 
 export interface TrattaMissione {

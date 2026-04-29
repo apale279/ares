@@ -5,7 +5,9 @@ import { CreateEventModal } from '../components/CreateEventModal'
 import { CODICE_EVENTO_COLOR, LABEL_STATO_MISSIONE } from '../constants'
 import { useAresStore } from '../store/aresStore'
 import type { Mezzo, Nota } from '../types'
+import { shortAddress } from '../utils/address'
 import { formatDataOra } from '../utils/format'
+import logoAres from '../../logo.png'
 
 export function Dashboard() {
   const eventi = useAresStore((s) => s.eventi)
@@ -14,6 +16,9 @@ export function Dashboard() {
   const pazienti = useAresStore((s) => s.pazienti)
   const note = useAresStore((s) => s.note)
   const avanzaMissione = useAresStore((s) => s.avanzaMissione)
+  const requestMissionTelegramDispatch = useAresStore(
+    (s) => s.requestMissionTelegramDispatch,
+  )
   const openModalEvento = useAresStore((s) => s.openModalEvento)
   const openModalMissione = useAresStore((s) => s.openModalMissione)
   const openModalMezzo = useAresStore((s) => s.openModalMezzo)
@@ -209,7 +214,13 @@ export function Dashboard() {
   return (
     <div className="ares-dashboard">
       <header className="ares-topbar">
-        <div className="ares-brand">ARES</div>
+        <div className="ares-brand">
+          <img src={logoAres} alt="Logo ARES" className="ares-brand-logo" />
+          <div className="ares-brand-text">
+            <span className="ares-brand-main">ARES</span>
+            <span className="ares-brand-sub">Advanced Response Emergency System</span>
+          </div>
+        </div>
         <div className="ares-topbar-actions">
           <button
             type="button"
@@ -315,7 +326,7 @@ export function Dashboard() {
                       </td>
                       <td>{formatTimer(e.createdAt)}</td>
                       <td>{child ? `↳ ${e.id}` : e.id}</td>
-                      <td>{e.indirizzo || '—'}</td>
+                      <td>{shortAddress(e.indirizzo) || '—'}</td>
                       <td>{pzCount > 0 ? `🧑 ${pzCount}` : '—'}</td>
                     </tr>
                   )
@@ -351,7 +362,7 @@ export function Dashboard() {
                       </td>
                       <td>{formatTimer(e.createdAt)}</td>
                       <td>{child ? `↳ ${e.id}` : e.id}</td>
-                      <td>{e.indirizzo || '—'}</td>
+                      <td>{shortAddress(e.indirizzo) || '—'}</td>
                       <td>{pzCount > 0 ? `🧑 ${pzCount}` : '—'}</td>
                     </tr>
                   )
@@ -377,6 +388,7 @@ export function Dashboard() {
                   <th>ID missione</th>
                   <th>Stato</th>
                   <th>Timer</th>
+                  <th>Telegram</th>
                   <th>Azione</th>
                 </tr>
               </thead>
@@ -385,11 +397,16 @@ export function Dashboard() {
                   const mz = mezzi.find((x) => x.id === m.mezzoId)
                   const ev = eventi.find((x) => x.id === m.eventoId)
                   const warn = m.stato === 'ALLERTARE'
+                  const codeColor = CODICE_EVENTO_COLOR[m.codice] ?? '#64748b'
                   const lastUpdate = m.statoHistory[m.statoHistory.length - 1]?.at ?? m.createdAt
                   return (
                     <tr
                       key={m.id}
                       className={warn ? 'ares-mission-alert-row' : undefined}
+                      style={{
+                        backgroundColor: `${codeColor}26`,
+                        borderLeft: `4px solid ${codeColor}`,
+                      }}
                     >
                       <td>
                         <span
@@ -406,7 +423,7 @@ export function Dashboard() {
                           className="ares-link-mission"
                           onClick={() => openModalEvento(m.eventoId)}
                         >
-                          {ev?.indirizzo?.trim() || `Evento ${m.eventoId}`}
+                          {shortAddress(ev?.indirizzo) || `Evento ${m.eventoId}`}
                         </button>
                       </td>
                       <td>
@@ -442,6 +459,16 @@ export function Dashboard() {
                         )}
                       </td>
                       <td>{formatTimer(lastUpdate)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ares-btn small secondary"
+                          title="Invia missione su Telegram"
+                          onClick={() => requestMissionTelegramDispatch(m.id)}
+                        >
+                          ➡️
+                        </button>
+                      </td>
                       <td>
                         <button
                           type="button"

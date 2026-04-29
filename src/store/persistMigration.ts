@@ -2,27 +2,57 @@ import { DEFAULT_IMPOSTAZIONI } from '../constants'
 import type { Impostazioni, Paziente, Valutazione } from '../types'
 import { nuovaValutazioneMSB } from './valutazioneFactories'
 
+function asStringArray(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) return fallback
+  return value
+    .map((v) => String(v ?? '').trim())
+    .filter(Boolean)
+}
+
 export function migrateImpostazioni(
   raw: Partial<Impostazioni> | undefined,
 ): Impostazioni {
+  const rankUtente = Array.isArray(raw?.rankUtente)
+    ? raw.rankUtente
+        .filter((r) => !!r && typeof r === 'object')
+        .map((r) => ({
+          id: String(r.id ?? '').trim(),
+          nome: String(r.nome ?? '').trim(),
+          routeKeys: Array.isArray(r.routeKeys)
+            ? r.routeKeys.filter(Boolean)
+            : [],
+        }))
+        .filter((r) => r.id && r.nome && r.routeKeys.length > 0)
+    : DEFAULT_IMPOSTAZIONI.rankUtente
+
+  const utenti = Array.isArray(raw?.utenti)
+    ? raw.utenti
+        .filter((u) => !!u && typeof u === 'object')
+        .map((u) => ({
+          id: String(u.id ?? '').trim(),
+          nomeUtente: String(u.nomeUtente ?? '').trim(),
+          password: String(u.password ?? ''),
+          rankId: String(u.rankId ?? '').trim(),
+        }))
+        .filter((u) => u.id && u.nomeUtente && u.rankId)
+    : DEFAULT_IMPOSTAZIONI.utenti
+
   return {
     ...DEFAULT_IMPOSTAZIONI,
     ...raw,
-    dettagliMedico: raw?.dettagliMedico ?? DEFAULT_IMPOSTAZIONI.dettagliMedico,
-    dettagliTrauma: raw?.dettagliTrauma ?? DEFAULT_IMPOSTAZIONI.dettagliTrauma,
-    dettagliNonNoto:
-      raw?.dettagliNonNoto ?? DEFAULT_IMPOSTAZIONI.dettagliNonNoto,
-    tipiMezzo: raw?.tipiMezzo ?? DEFAULT_IMPOSTAZIONI.tipiMezzo,
-    ospedali: raw?.ospedali ?? DEFAULT_IMPOSTAZIONI.ospedali,
-    pma: raw?.pma ?? DEFAULT_IMPOSTAZIONI.pma,
-    manovreMSB: raw?.manovreMSB ?? DEFAULT_IMPOSTAZIONI.manovreMSB,
-    manovreMSA: raw?.manovreMSA ?? DEFAULT_IMPOSTAZIONI.manovreMSA,
-    manovrePMA: raw?.manovrePMA ?? DEFAULT_IMPOSTAZIONI.manovrePMA,
-    presetDimissione:
-      raw?.presetDimissione ?? DEFAULT_IMPOSTAZIONI.presetDimissione,
-    mediciPma: raw?.mediciPma ?? DEFAULT_IMPOSTAZIONI.mediciPma,
-    rankUtente: raw?.rankUtente ?? DEFAULT_IMPOSTAZIONI.rankUtente,
-    utenti: raw?.utenti ?? DEFAULT_IMPOSTAZIONI.utenti,
+    dettagliMedico: asStringArray(raw?.dettagliMedico, DEFAULT_IMPOSTAZIONI.dettagliMedico),
+    dettagliTrauma: asStringArray(raw?.dettagliTrauma, DEFAULT_IMPOSTAZIONI.dettagliTrauma),
+    dettagliNonNoto: asStringArray(raw?.dettagliNonNoto, DEFAULT_IMPOSTAZIONI.dettagliNonNoto),
+    tipiMezzo: asStringArray(raw?.tipiMezzo, DEFAULT_IMPOSTAZIONI.tipiMezzo),
+    ospedali: asStringArray(raw?.ospedali, DEFAULT_IMPOSTAZIONI.ospedali),
+    pma: asStringArray(raw?.pma, DEFAULT_IMPOSTAZIONI.pma),
+    manovreMSB: asStringArray(raw?.manovreMSB, DEFAULT_IMPOSTAZIONI.manovreMSB),
+    manovreMSA: asStringArray(raw?.manovreMSA, DEFAULT_IMPOSTAZIONI.manovreMSA),
+    manovrePMA: asStringArray(raw?.manovrePMA, DEFAULT_IMPOSTAZIONI.manovrePMA),
+    presetDimissione: asStringArray(raw?.presetDimissione, DEFAULT_IMPOSTAZIONI.presetDimissione),
+    mediciPma: asStringArray(raw?.mediciPma, DEFAULT_IMPOSTAZIONI.mediciPma),
+    rankUtente,
+    utenti,
   }
 }
 

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { LABEL_STATO_MISSIONE } from '../constants'
 import { useAresStore } from '../store/aresStore'
 import { formatDataOra } from '../utils/format'
@@ -7,6 +9,8 @@ export function MezzoVista() {
   const mezzi = useAresStore((s) => s.mezzi)
   const missioni = useAresStore((s) => s.missioni)
   const eventi = useAresStore((s) => s.eventi)
+  const pazienti = useAresStore((s) => s.pazienti)
+  const [params] = useSearchParams()
   const [mezzoId, setMezzoId] = useState('')
 
   const mezziOrdinati = useMemo(
@@ -30,6 +34,18 @@ export function MezzoVista() {
     }
     return { mezzo, missione: null, evento: null }
   }, [mezzoId, mezzi, missioni, eventi])
+
+  useEffect(() => {
+    const sigla = params.get('sigla')?.trim()
+    if (!sigla) return
+    const mezzo = mezzi.find((m) => m.sigla.toLowerCase() === sigla.toLowerCase())
+    if (mezzo) setMezzoId(mezzo.id)
+  }, [params, mezzi])
+
+  const pazientiEvento = useMemo(() => {
+    if (!active?.evento) return []
+    return pazienti.filter((p) => p.eventoId === active.evento?.id)
+  }, [active, pazienti])
 
   return (
     <div className="ares-mezzo-vista">
@@ -93,6 +109,18 @@ export function MezzoVista() {
             <p>
               <strong>Aperta:</strong> {formatDataOra(active.missione.createdAt)}
             </p>
+          </div>
+          <div className="ares-mezzo-block">
+            <h3>Pazienti evento {active.evento.id}</h3>
+            {pazientiEvento.length === 0 ? (
+              <p>Nessun paziente registrato.</p>
+            ) : (
+              pazientiEvento.map((p) => (
+                <p key={p.id}>
+                  <strong>{p.id}</strong> · {[p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza anagrafica'}
+                </p>
+              ))
+            )}
           </div>
         </div>
       ) : mezzoId && active?.mezzo ? (
