@@ -630,10 +630,8 @@ export const useAresStore = create<AresState>()(
               if (e.stato === 'IN_ATTESA') return e
               return { ...e, stato: 'IN_ATTESA' as const }
             }
-            const tutteChiuse = list.every((m) => m.stato === 'FINE_MISSIONE')
-            if (tutteChiuse) {
-              return { ...e, stato: 'CHIUSO' as const }
-            }
+            // CHIUSO deve restare una scelta manuale dell'operatore.
+            // Anche se tutte le missioni sono finite, l'evento non viene chiuso automaticamente.
             if (e.stato === 'APERTO') return e
             return { ...e, stato: 'APERTO' as const }
           })
