@@ -9,6 +9,7 @@ import { PhotonAddressField } from './PhotonAddressField'
 
 export function EventDetailModal({ onClose }: { onClose: () => void }) {
   const eventoId = useAresStore((s) => s.modalEventoId)
+  const openModalEvento = useAresStore((s) => s.openModalEvento)
   const openModalMissione = useAresStore((s) => s.openModalMissione)
   const openModalPaziente = useAresStore((s) => s.openModalPaziente)
   const evento = useAresStore((s) =>
@@ -24,6 +25,7 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
   const chiudiEvento = useAresStore((s) => s.chiudiEvento)
   const deleteEvento = useAresStore((s) => s.deleteEvento)
   const addMissione = useAresStore((s) => s.addMissione)
+  const addEvento = useAresStore((s) => s.addEvento)
   const deleteMissione = useAresStore((s) => s.deleteMissione)
   const avanzaMissione = useAresStore((s) => s.avanzaMissione)
   const terminaMissione = useAresStore((s) => s.terminaMissione)
@@ -33,6 +35,7 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmClose, setConfirmClose] = useState(false)
   const [mezzoMissione, setMezzoMissione] = useState('')
+  const [forzaMezzoOccupato, setForzaMezzoOccupato] = useState(false)
   const [geoBusy, setGeoBusy] = useState(false)
 
   const missioniEv = useMemo(
@@ -45,8 +48,13 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
     [pazienti, eventoId],
   )
 
-  const mezziDisponibiliOrdinati = useMemo(() => {
-    const disp = mezzi.filter((m) => m.stato === 'DISPONIBILE')
+  const eventiFigli = useMemo(
+    () => eventi.filter((e) => e.parentEventoId === eventoId),
+    [eventi, eventoId],
+  )
+
+  const mezziOrdinati = useMemo(() => {
+    const disp = [...mezzi]
     const ev = eventi.find((e) => e.id === eventoId)
     if (!ev?.lat || !ev?.lng) return disp
     const { lat, lng } = ev
@@ -68,7 +76,6 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
   const dettagli = dettagliPerTipo(impostazioni, evento.tipoEvento)
 
   const cercaCoordinateOra = async () => {
-    if (evento.indirizzoLimitato) return
     const addr = evento.indirizzo.trim()
     if (addr.length < 3) return
     setGeoBusy(true)
@@ -101,6 +108,7 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
           <p className="ares-muted">
             Creato: {formatDataOra(evento.createdAt)} · Stato:{' '}
             <strong>{evento.stato}</strong>
+            {evento.parentEventoId ? ` · Figlio di ${evento.parentEventoId}` : ''}
           </p>
 
           <section className="ares-section">
@@ -115,11 +123,11 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                   })
                 }
               />
-              Evento limitato (testo libero, senza indirizzo stradale)
+              Luogo senza nome
             </label>
             {evento.indirizzoLimitato ? (
               <label>
-                Luogo / settore
+                Nome luogo
                 <input
                   value={evento.indirizzo}
                   onChange={(e) =>
@@ -167,64 +175,62 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                 />
               </label>
             )}
-            {!evento.indirizzoLimitato && (
-              <>
-                <div className="ares-form-grid tight">
-                  <label>
-                    Lat
-                    <input
-                      type="number"
-                      step="any"
-                      value={evento.lat ?? ''}
-                      onChange={(e) =>
-                        updateEvento(evento.id, {
-                          lat:
-                            e.target.value === ''
-                              ? null
-                              : Number(e.target.value),
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Lng
-                    <input
-                      type="number"
-                      step="any"
-                      value={evento.lng ?? ''}
-                      onChange={(e) =>
-                        updateEvento(evento.id, {
-                          lng:
-                            e.target.value === ''
-                              ? null
-                              : Number(e.target.value),
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-                <div className="ares-btn-row-2">
-                  <button
-                    type="button"
-                    className="ares-btn secondary"
-                    disabled={geoBusy}
-                    onClick={() => cercaCoordinateOra()}
-                  >
-                    Aggiorna punto da indirizzo
-                  </button>
-                  <button
-                    type="button"
-                    className="ares-btn secondary"
-                    disabled={evento.lat == null || evento.lng == null}
-                    onClick={() =>
-                      requestMapFocus(evento.lat!, evento.lng!)
+            <>
+              <div className="ares-form-grid tight">
+                <label>
+                  Lat
+                  <input
+                    type="number"
+                    step="any"
+                    value={evento.lat ?? ''}
+                    onChange={(e) =>
+                      updateEvento(evento.id, {
+                        lat:
+                          e.target.value === ''
+                            ? null
+                            : Number(e.target.value),
+                      })
                     }
-                  >
-                    Mostra sulla mappa
-                  </button>
-                </div>
-              </>
-            )}
+                  />
+                </label>
+                <label>
+                  Lng
+                  <input
+                    type="number"
+                    step="any"
+                    value={evento.lng ?? ''}
+                    onChange={(e) =>
+                      updateEvento(evento.id, {
+                        lng:
+                          e.target.value === ''
+                            ? null
+                            : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="ares-btn-row-2">
+                <button
+                  type="button"
+                  className="ares-btn secondary"
+                  disabled={geoBusy || evento.indirizzoLimitato}
+                  onClick={() => cercaCoordinateOra()}
+                >
+                  Aggiorna punto da indirizzo
+                </button>
+                <button
+                  type="button"
+                  className="ares-btn secondary"
+                  disabled={evento.lat == null || evento.lng == null}
+                  onClick={() =>
+                    requestMapFocus(evento.lat!, evento.lng!)
+                  }
+                >
+                  Mostra sulla mappa
+                </button>
+              </div>
+            </>
           </section>
 
           <section className="ares-section">
@@ -309,6 +315,16 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                   }
                 />
               </label>
+              <label className="ares-check">
+                <input
+                  type="checkbox"
+                  checked={evento.eventoInAttesa}
+                  onChange={(e) =>
+                    updateEvento(evento.id, { eventoInAttesa: e.target.checked })
+                  }
+                />
+                Evento in attesa
+              </label>
             </div>
           </section>
 
@@ -331,7 +347,7 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                       ? ' (ordinati per distanza)'
                       : ''}
                   </option>
-                  {mezziDisponibiliOrdinati.map((m) => {
+                  {mezziOrdinati.map((m) => {
                     let kmLabel = ''
                     if (
                       evento.lat != null &&
@@ -350,19 +366,31 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                     return (
                       <option key={m.id} value={m.id}>
                         {m.sigla} ({m.tipo})
+                        {m.stato !== 'DISPONIBILE' ? ` [${m.stato}]` : ''}
                         {kmLabel}
                       </option>
                     )
                   })}
                 </select>
+                <label className="ares-check">
+                  <input
+                    type="checkbox"
+                    checked={forzaMezzoOccupato}
+                    onChange={(e) => setForzaMezzoOccupato(e.target.checked)}
+                  />
+                  Forza assegnazione anche su mezzo occupato
+                </label>
                 <button
                   type="button"
                   className="ares-btn primary"
                   disabled={!mezzoMissione}
                   onClick={() => {
-                    const r = addMissione(evento.id, mezzoMissione)
+                    const r = addMissione(evento.id, mezzoMissione, forzaMezzoOccupato)
                     if (!r.ok) alert(r.reason)
-                    else setMezzoMissione('')
+                    else {
+                      setMezzoMissione('')
+                      setForzaMezzoOccupato(false)
+                    }
                   }}
                 >
                   Aggiungi missione
@@ -467,6 +495,45 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
 
           <section className="ares-section ares-section--danger">
             <h3 className="ares-section-title">Azioni</h3>
+            <div className="ares-danger-zone">
+              <button
+                type="button"
+                className="ares-btn secondary"
+                onClick={() => {
+                  const childId = addEvento({
+                    parentEventoId: evento.id,
+                    indirizzoLimitato: evento.indirizzoLimitato,
+                    indirizzo: evento.indirizzo,
+                    lat: evento.lat,
+                    lng: evento.lng,
+                    tipoEvento: evento.tipoEvento,
+                    dettaglioEvento: evento.dettaglioEvento,
+                    descrizione: `Evento figlio di ${evento.id}`,
+                    codice: evento.codice,
+                    segnalatoDa: evento.segnalatoDa,
+                    eventoInAttesa: false,
+                  })
+                  openModalEvento(childId)
+                }}
+              >
+                Crea evento figlio
+              </button>
+              {eventiFigli.length > 0 && (
+                <ul className="ares-list-compact">
+                  {eventiFigli.map((child) => (
+                    <li key={child.id}>
+                      <button
+                        type="button"
+                        className="ares-link-mission"
+                        onClick={() => openModalEvento(child.id)}
+                      >
+                        {child.id} · {child.stato}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <div className="ares-danger-zone">
               {evento.stato !== 'CHIUSO' && (
                 <>

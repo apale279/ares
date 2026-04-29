@@ -58,10 +58,11 @@ export function workspaceArea(): { width: number; height: number } {
     return { width: 1280, height: 720 }
   }
   const nav = 52
-  const dashboardTopbar = 52
+  const dashboardTopbar = 94
+  const dashboardSidebar = 180
   const chrome = nav + dashboardTopbar
   return {
-    width: window.innerWidth,
+    width: Math.max(640, window.innerWidth - dashboardSidebar),
     height: Math.max(320, window.innerHeight - chrome),
   }
 }

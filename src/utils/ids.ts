@@ -33,3 +33,7 @@ export function nuovoIdPaziente(idsEsistenti: Set<string>): string {
 export function nuovoIdValutazione(): string {
   return `val_${crypto.randomUUID()}`
 }
+
+export function nuovoIdNota(): string {
+  return `N_${random6()}`
+}

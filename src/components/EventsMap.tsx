@@ -6,6 +6,7 @@ import {
   useMap,
   useMapEvents,
 } from 'react-leaflet'
+import { LatLngBounds } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import '../map/leafletSetup'
 import { CODICE_EVENTO_COLOR } from '../constants'
@@ -53,6 +54,23 @@ function ResizeInvalidate() {
     ro.observe(container)
     return () => ro.disconnect()
   }, [map, container])
+  return null
+}
+
+function FitActiveEvents({ eventi }: { eventi: Evento[] }) {
+  const map = useMap()
+  useEffect(() => {
+    const coords = eventi
+      .filter((e) => e.lat != null && e.lng != null)
+      .map((e) => [e.lat as number, e.lng as number] as [number, number])
+    if (coords.length === 0) return
+    if (coords.length === 1) {
+      map.setView(coords[0], 14, { animate: false })
+      return
+    }
+    const bounds = new LatLngBounds(coords)
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 })
+  }, [map, eventi])
   return null
 }
 
@@ -167,6 +185,7 @@ export function EventsMap({
       scrollWheelZoom
     >
       <ResizeInvalidate />
+      <FitActiveEvents eventi={eventi} />
       <MapFocusHandler key={mapFocusKey} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'

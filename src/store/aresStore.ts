@@ -14,9 +14,12 @@ import type {
   Mezzo,
   Missione,
   MissionStateLog,
+  Nota,
   Paziente,
   StatoEvento,
   StatoMissione,
+  StatoNota,
+  TrattaMissione,
   TipoEvento,
   Valutazione,
 } from '../types'
@@ -35,6 +38,7 @@ import {
   nuovoIdEvento,
   nuovoIdMezzo,
   nuovoIdMissione,
+  nuovoIdNota,
   nuovoIdPaziente,
 } from '../utils/ids'
 import {
@@ -58,6 +62,7 @@ export interface AresState {
   missioni: Missione[]
   mezzi: Mezzo[]
   pazienti: Paziente[]
+  note: Nota[]
   valutazioni: Valutazione[]
   layout: LayoutPannelli
   /** Per migrazione layout a schermo intero (incrementa LAYOUT_VERSION) */
@@ -69,10 +74,11 @@ export interface AresState {
   modalEventoId: string | null
   modalMissioneId: string | null
   modalPazienteId: string | null
+  modalPazienteMode: 'default' | 'pma'
   modalMezzoId: string | null
   openModalEvento: (id: string | null) => void
   openModalMissione: (id: string | null) => void
-  openModalPaziente: (id: string | null) => void
+  openModalPaziente: (id: string | null, mode?: 'default' | 'pma') => void
   openModalMezzo: (id: string | null) => void
 
   setImpostazioni: (p: Partial<Impostazioni>) => void
@@ -97,8 +103,11 @@ export interface AresState {
   chiudiEvento: (id: string) => void
   deleteEvento: (id: string) => void
 
-  addMissione: (eventoId: string, mezzoId: string) => { ok: true; id: string } | { ok: false; reason: string }
+  addMissione: (eventoId: string, mezzoId: string, force?: boolean) => { ok: true; id: string } | { ok: false; reason: string }
   updateMissioneStato: (missioneId: string, stato: StatoMissione) => void
+  addTrattaMissione: (missioneId: string, payload?: Partial<TrattaMissione>) => void
+  updateTrattaMissione: (missioneId: string, trattaId: string, patch: Partial<TrattaMissione>) => void
+  deleteTrattaMissione: (missioneId: string, trattaId: string) => void
   avanzaMissione: (missioneId: string) => void
   /** Imposta FINE_MISSIONE e libera il mezzo (stesso effetto dell’ultimo stato). */
   terminaMissione: (missioneId: string) => void
@@ -107,6 +116,10 @@ export interface AresState {
   addPaziente: (eventoId: string) => string
   updatePaziente: (id: string, patch: Partial<Paziente>) => void
   deletePaziente: (id: string) => void
+
+  addNota: (input: { titolo: string; testo: string; stato?: StatoNota; importante?: boolean }) => string
+  updateNota: (id: string, patch: Partial<Nota>) => void
+  deleteNota: (id: string) => void
 
   addValutazioneMSB: (pazienteId: string) => string
   addValutazioneMSA: (pazienteId: string) => string
@@ -136,6 +149,7 @@ export const useAresStore = create<AresState>()(
       missioni: [],
       mezzi: [],
       pazienti: [],
+      note: [],
       valutazioni: [],
       layout: computeDefaultLayout(
         workspaceArea().width,
@@ -147,11 +161,13 @@ export const useAresStore = create<AresState>()(
       modalEventoId: null,
       modalMissioneId: null,
       modalPazienteId: null,
+      modalPazienteMode: 'default',
       modalMezzoId: null,
 
       openModalEvento: (id) => set({ modalEventoId: id }),
       openModalMissione: (id) => set({ modalMissioneId: id }),
-      openModalPaziente: (id) => set({ modalPazienteId: id }),
+      openModalPaziente: (id, mode = 'default') =>
+        set({ modalPazienteId: id, modalPazienteMode: mode }),
       openModalMezzo: (id) => set({ modalMezzoId: id }),
 
       requestMapFocus: (lat, lng) =>
@@ -227,6 +243,7 @@ export const useAresStore = create<AresState>()(
         const evento: Evento = {
           id,
           createdAt: nowIso(),
+          parentEventoId: input.parentEventoId ?? null,
           stato: input.stato ?? 'IN_ATTESA',
           indirizzoLimitato: input.indirizzoLimitato,
           indirizzo: input.indirizzo,
@@ -237,6 +254,7 @@ export const useAresStore = create<AresState>()(
           descrizione: input.descrizione,
           codice: input.codice,
           segnalatoDa: input.segnalatoDa,
+          eventoInAttesa: input.eventoInAttesa ?? false,
         }
         const idsPaz = new Set(get().pazienti.map((x) => x.id))
         const pazId = nuovoIdPaziente(idsPaz)
@@ -252,9 +270,11 @@ export const useAresStore = create<AresState>()(
           ospedaleDestinazione: '',
           pmaDestinazione: '',
           mezzoTrasportoId: null,
+          codiceTrasporto: input.codice,
           arrivoInOspedaleAt: null,
           pmaArrivoAt: null,
           trasportoCompletatoAt: null,
+          medicoDimissionePma: '',
         }
         set((s) => ({
           eventi: [...s.eventi, evento],
@@ -318,14 +338,14 @@ export const useAresStore = create<AresState>()(
         })
       },
 
-      addMissione: (eventoId, mezzoId) => {
+      addMissione: (eventoId, mezzoId, force = false) => {
         const s = get()
         const ev = s.eventi.find((e) => e.id === eventoId)
         if (!ev) return { ok: false, reason: 'Evento non trovato' }
         if (ev.stato === 'CHIUSO') return { ok: false, reason: 'Evento chiuso' }
         const mezzo = s.mezzi.find((m) => m.id === mezzoId)
         if (!mezzo) return { ok: false, reason: 'Mezzo non trovato' }
-        if (mezzo.stato !== 'DISPONIBILE')
+        if (mezzo.stato !== 'DISPONIBILE' && !force)
           return { ok: false, reason: 'Mezzo non disponibile' }
         const ids = collectIds(s)
         const id = nuovoIdMissione(ids.missioni)
@@ -335,10 +355,12 @@ export const useAresStore = create<AresState>()(
           id,
           eventoId,
           createdAt: ts,
+          codice: ev.codice,
           mezzoId,
           equipaggio: copiaEquipaggio(mezzo.equipaggio),
           stato: 'ALLERTARE',
           statoHistory: [log],
+          tratte: [],
         }
         set({
           missioni: [...s.missioni, missione],
@@ -397,6 +419,45 @@ export const useAresStore = create<AresState>()(
         get()._reconcile()
       },
 
+      addTrattaMissione: (missioneId, payload) =>
+        set((s) => ({
+          missioni: s.missioni.map((m) => {
+            if (m.id !== missioneId) return m
+            const next: TrattaMissione = {
+              id: `tratta_${crypto.randomUUID()}`,
+              timestamp: payload?.timestamp ?? nowIso(),
+              titolo: payload?.titolo ?? 'Nuova tratta',
+              destinazione: payload?.destinazione ?? '',
+              descrizione: payload?.descrizione ?? '',
+            }
+            return { ...m, tratte: [...(m.tratte ?? []), next] }
+          }),
+        })),
+
+      updateTrattaMissione: (missioneId, trattaId, patch) =>
+        set((s) => ({
+          missioni: s.missioni.map((m) => {
+            if (m.id !== missioneId) return m
+            return {
+              ...m,
+              tratte: (m.tratte ?? []).map((t) =>
+                t.id === trattaId ? { ...t, ...patch } : t,
+              ),
+            }
+          }),
+        })),
+
+      deleteTrattaMissione: (missioneId, trattaId) =>
+        set((s) => ({
+          missioni: s.missioni.map((m) => {
+            if (m.id !== missioneId) return m
+            return {
+              ...m,
+              tratte: (m.tratte ?? []).filter((t) => t.id !== trattaId),
+            }
+          }),
+        })),
+
       avanzaMissione: (missioneId) => {
         const m = get().missioni.find((x) => x.id === missioneId)
         if (!m) return
@@ -441,23 +502,62 @@ export const useAresStore = create<AresState>()(
           ospedaleDestinazione: '',
           pmaDestinazione: '',
           mezzoTrasportoId: null,
+          codiceTrasporto: 'VERDE',
           arrivoInOspedaleAt: null,
           pmaArrivoAt: null,
           trasportoCompletatoAt: null,
+          medicoDimissionePma: '',
         }
         set({ pazienti: [...s.pazienti, p] })
         return id
       },
 
       updatePaziente: (id, patch) =>
-        set((s) => ({
-          pazienti: s.pazienti.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-        })),
+        set((s) => {
+          const target = s.pazienti.find((p) => p.id === id)
+          if (!target) return s
+          const merged = { ...target, ...patch }
+          let missioni = s.missioni
+          if (merged.mezzoTrasportoId && merged.codiceTrasporto) {
+            missioni = s.missioni.map((m) =>
+              m.eventoId === merged.eventoId && m.mezzoId === merged.mezzoTrasportoId
+                ? { ...m, codice: merged.codiceTrasporto }
+                : m,
+            )
+          }
+          return {
+            pazienti: s.pazienti.map((p) => (p.id === id ? merged : p)),
+            missioni,
+          }
+        }),
 
       deletePaziente: (id) =>
         set((s) => ({
           pazienti: s.pazienti.filter((p) => p.id !== id),
           valutazioni: s.valutazioni.filter((v) => v.pazienteId !== id),
+        })),
+
+      addNota: (input) => {
+        const nota: Nota = {
+          id: nuovoIdNota(),
+          createdAt: nowIso(),
+          titolo: input.titolo.trim(),
+          testo: input.testo.trim(),
+          stato: input.stato ?? 'APERTA',
+          importante: input.importante ?? false,
+        }
+        set((s) => ({ note: [nota, ...s.note] }))
+        return nota.id
+      },
+
+      updateNota: (id, patch) =>
+        set((s) => ({
+          note: s.note.map((n) => (n.id === id ? { ...n, ...patch } : n)),
+        })),
+
+      deleteNota: (id) =>
+        set((s) => ({
+          note: s.note.filter((n) => n.id !== id),
         })),
 
       addValutazioneMSB: (pazienteId) => {
@@ -530,6 +630,7 @@ export const useAresStore = create<AresState>()(
         missioni: s.missioni,
         mezzi: s.mezzi,
         pazienti: s.pazienti,
+        note: s.note,
         valutazioni: s.valutazioni,
         layout: s.layout,
         layoutVersion: s.layoutVersion,
@@ -551,10 +652,47 @@ export const useAresStore = create<AresState>()(
             stazionamentoLng: m.stazionamentoLng ?? null,
           }))
         }
-        out.impostazioni = migrateImpostazioni(p.impostazioni)
+        out.impostazioni = migrateImpostazioni({
+          ...c.impostazioni,
+          ...(p.impostazioni ?? {}),
+        })
+        out.eventi = (out.eventi ?? []).map((e) => ({
+          ...e,
+          eventoInAttesa: e.eventoInAttesa ?? false,
+        }))
         out.pazienti = migratePazienti(out.pazienti ?? [])
+        out.missioni = (out.missioni ?? []).map((m) => ({
+          ...m,
+          codice:
+            m.codice ??
+            out.eventi.find((e) => e.id === m.eventoId)?.codice ??
+            'VERDE',
+          tratte: (m.tratte ?? []).map((t) => ({
+            id: t.id,
+            timestamp: t.timestamp ?? nowIso(),
+            titolo: t.titolo ?? '',
+            destinazione: t.destinazione ?? '',
+            descrizione: t.descrizione ?? '',
+          })),
+        }))
+        out.note = (out.note ?? []).map((n) => ({
+          id: n.id,
+          createdAt: n.createdAt ?? nowIso(),
+          titolo: n.titolo ?? '',
+          testo: n.testo ?? '',
+          stato: n.stato ?? 'APERTA',
+          importante: n.importante ?? false,
+        }))
         out.valutazioni = migrateValutazioni(
           (p as { valutazioni?: unknown }).valutazioni,
+        ).map((v) =>
+          v.tipo === 'PMA'
+            ? ({
+                ...v,
+                noteDimissione: v.noteDimissione ?? '',
+                manovreEffettuate: v.manovreEffettuate ?? [],
+              } as Valutazione)
+            : v,
         )
         return out
       },

@@ -10,7 +10,7 @@
   --ares-accent-dim: #bae6fd;
   --ares-danger: #b91c1c;
   --ares-warn: #a16207;
-  --ares-font: 'Segoe UI', system-ui, sans-serif;
+  --ares-font: Arial, sans-serif;
   /** Incremento px solo per testo contenuto (vedi `fontScale.ts`) */
   --ares-text-extra: 0px;
 }
@@ -36,7 +36,7 @@ body {
 
 .ares-main,
 .ares-modal-backdrop {
-  font-size: calc(14px + var(--ares-text-extra, 0px));
+  font-size: 14px;
 }
 
 .ares-topbar {
@@ -55,13 +55,20 @@ button.ares-link-mission,
 }
 
 .ares-btn.small {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .ares-app {
+  --ares-uniform-font-size: 14px;
+  font-size: 14px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.ares-app * {
+  font-family: Arial, sans-serif !important;
+  font-size: 14px !important;
 }
 
 .ares-nav {
@@ -82,9 +89,41 @@ button.ares-link-mission,
   cursor: pointer;
 }
 
+.ares-nav a {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--ares-border);
+  background: var(--ares-elevated);
+  color: var(--ares-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
 .ares-nav button.active {
   border-color: var(--ares-accent);
   background: rgba(3, 105, 161, 0.12);
+}
+
+.ares-nav a.active {
+  border-color: var(--ares-accent);
+  background: rgba(3, 105, 161, 0.12);
+}
+
+.ares-nav-sync {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #854d0e;
+  background: #f59e0b;
+  color: #111827;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.ares-nav-sync:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .ares-main {
@@ -138,10 +177,64 @@ button.ares-link-mission,
 }
 
 .ares-workspace {
-  position: relative;
   flex: 1;
   min-height: 0;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
   overflow: hidden;
+}
+
+.ares-workspace-panels {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ares-dashboard-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--ares-border);
+  background: var(--ares-elevated);
+}
+
+.ares-dashboard-counters span {
+  padding: 3px 8px;
+  border: 1px solid var(--ares-border);
+  border-radius: 999px;
+  background: var(--ares-surface);
+}
+
+.ares-diario-side {
+  width: 170px;
+  min-width: 170px;
+  border: 1px solid var(--ares-border);
+  border-radius: 10px;
+  background: var(--ares-surface);
+  padding: 8px;
+  overflow: auto;
+}
+
+.ares-diario-side-title {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+
+.ares-diario-side-item {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  background: var(--ares-elevated);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
 .ares-rnd .ares-panel {
@@ -218,6 +311,45 @@ button.ares-link-mission,
 .ares-warn {
   color: var(--ares-warn);
   margin-left: 4px;
+}
+
+.ares-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 12px !important;
+  line-height: 1;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+  animation: ares-alert-pulse 1s ease-in-out infinite;
+}
+
+.ares-alert-badge--event {
+  background: #b45309;
+}
+
+.ares-alert-badge--mission {
+  background: #b91c1c;
+}
+
+.ares-mission-alert-row {
+  background: rgba(185, 28, 28, 0.1);
+}
+
+@keyframes ares-alert-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 0 rgba(185, 28, 28, 0.35);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 6px rgba(185, 28, 28, 0);
+  }
 }
 
 .ares-muted {
@@ -508,6 +640,42 @@ textarea {
   background: var(--ares-elevated);
 }
 
+.ares-note-card-important {
+  border-color: var(--ares-warn);
+  box-shadow: inset 0 0 0 1px rgba(161, 98, 7, 0.25);
+}
+
+.ares-diario-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.ares-diario-list-panel {
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+}
+
+.ares-diario-row {
+  width: 100%;
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--ares-elevated);
+  color: var(--ares-text);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.ares-modal--pma {
+  width: min(1200px, 96vw);
+  max-height: calc(100vh - 24px);
+}
+
 .ares-card-row {
   display: flex;
   flex-wrap: wrap;
@@ -654,6 +822,11 @@ textarea {
 
 .ares-link-mission:hover {
   color: #0c4a6e;
+}
+
+.ares-link-mission-status {
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .ares-list-compact {
@@ -832,6 +1005,70 @@ textarea {
   color: var(--ares-muted);
   background: var(--ares-elevated);
   border-bottom: 1px solid var(--ares-border);
+}
+
+.ares-pma-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 12px;
+  margin-top: 16px;
+  min-height: calc(100vh - 220px);
+}
+
+.ares-pma-left,
+.ares-pma-main {
+  background: var(--ares-bg);
+  border: 1px solid var(--ares-border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.ares-pma-left {
+  overflow: auto;
+}
+
+.ares-pma-page {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 12px;
+}
+
+.ares-pma-patient-chip {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--ares-border);
+}
+
+.ares-pma-patient-chip.ares-codice-verde {
+  border-left: 4px solid #22c55e;
+}
+.ares-pma-patient-chip.ares-codice-giallo {
+  border-left: 4px solid #eab308;
+}
+.ares-pma-patient-chip.ares-codice-rosso {
+  border-left: 4px solid #ef4444;
+}
+
+.ares-pma-main {
+  overflow: hidden;
+}
+
+.ares-pma-patient-view {
+  height: 100%;
+}
+
+.ares-pma-patient-shell {
+  height: 100%;
+  border: 1px solid var(--ares-border);
+  border-radius: 12px;
+  background: var(--ares-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.ares-pma-patient-shell .ares-modal-scroll {
+  flex: 1;
 }
 
 /* Ricerca */

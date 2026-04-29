@@ -1,4 +1,11 @@
 export type CodiceEvento = 'VERDE' | 'GIALLO' | 'ROSSO'
+export type AppRouteKey =
+  | 'dashboard'
+  | 'diario'
+  | 'ricerca'
+  | 'impostazioni'
+  | 'pma'
+  | 'mezzo'
 
 export type TipoEvento = 'MEDICO' | 'TRAUMA' | 'NON_NOTO'
 
@@ -54,6 +61,7 @@ export interface Mezzo {
 export interface Evento {
   id: string
   createdAt: string
+  parentEventoId?: string | null
   indirizzoLimitato: boolean
   indirizzo: string
   lat: number | null
@@ -63,8 +71,20 @@ export interface Evento {
   descrizione: string
   codice: CodiceEvento
   segnalatoDa: string
+  eventoInAttesa: boolean
   /** CHIUSO è manuale; IN_ATTESA/APERTO vengono aggiornati dallo store */
   stato: StatoEvento
+}
+
+export type StatoNota = 'APERTA' | 'IN_CORSO' | 'CHIUSA'
+
+export interface Nota {
+  id: string
+  createdAt: string
+  titolo: string
+  testo: string
+  stato: StatoNota
+  importante: boolean
 }
 
 export interface MissionStateLog {
@@ -76,10 +96,20 @@ export interface Missione {
   id: string
   eventoId: string
   createdAt: string
+  codice: CodiceEvento
   mezzoId: string
   equipaggio: Equipaggio
   stato: StatoMissione
   statoHistory: MissionStateLog[]
+  tratte: TrattaMissione[]
+}
+
+export interface TrattaMissione {
+  id: string
+  timestamp: string
+  titolo: string
+  destinazione: string
+  descrizione: string
 }
 
 /** Con esito TRASPORTATO: destinazione in ospedale o in PMA */
@@ -99,11 +129,13 @@ export interface Paziente {
   /** Nome PMA da elenco impostazioni se tipoDestinazioneTrasporto === 'PMA' */
   pmaDestinazione: string
   mezzoTrasportoId: string | null
+  codiceTrasporto: CodiceEvento
   arrivoInOspedaleAt: string | null
   /** Impostato in automazione quando il mezzo è in ARRIVATO_IN_H verso PMA */
   pmaArrivoAt: string | null
   /** Fine percorso ospedale (automazione ARRIVATO_IN_H) o fine PMA (esito valutazione PMA) */
   trasportoCompletatoAt: string | null
+  medicoDimissionePma: string
 }
 
 export interface ParametriVitali {
@@ -192,8 +224,10 @@ export interface ValutazionePMA {
   eo: string
   farmaciSomministrati: FarmacoRiga[]
   rivalutazioni: RivalutazionePMA[]
+  manovreEffettuate: string[]
   esito: EsitoValutazionePMA
   esitoAltroNote: string
+  noteDimissione: string
 }
 
 export type Valutazione = ValutazioneMSB | ValutazioneMSA | ValutazionePMA
@@ -208,6 +242,24 @@ export interface Impostazioni {
   pma: string[]
   manovreMSB: string[]
   manovreMSA: string[]
+  manovrePMA: string[]
+  presetDimissione: string[]
+  mediciPma: string[]
+  rankUtente: RankUtente[]
+  utenti: Utente[]
+}
+
+export interface RankUtente {
+  id: string
+  nome: string
+  routeKeys: AppRouteKey[]
+}
+
+export interface Utente {
+  id: string
+  nomeUtente: string
+  password: string
+  rankId: string
 }
 
 export interface PanelRect {

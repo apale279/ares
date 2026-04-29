@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type {
+  CodiceEvento,
   EsitoPaziente,
   Paziente,
   ValutazioneMSA,
@@ -9,7 +10,6 @@ import type {
 import { LABEL_ESITO_PAZIENTE } from '../constants/valutazioneOptions'
 import { useAresStore } from '../store/aresStore'
 import { formatDataOra } from '../utils/format'
-import { esitoPmaChiudePaziente } from '../utils/pmaValutazione'
 import {
   ValutazioneMSAEditor,
   ValutazioneMSBEditor,
@@ -37,14 +37,25 @@ function riassuntoMsa(v: ValutazioneMSA): string {
   return 'MSA'
 }
 
-export function PatientDetailModal({ onClose }: { onClose: () => void }) {
-  const pazienteId = useAresStore((s) => s.modalPazienteId)
+export function PatientDetailModal({
+  onClose,
+  compactForPma,
+  pazienteIdOverride,
+  embedded,
+}: {
+  onClose: () => void
+  compactForPma?: boolean
+  pazienteIdOverride?: string | null
+  embedded?: boolean
+}) {
+  const pazienteId = useAresStore((s) => pazienteIdOverride ?? s.modalPazienteId)
   const paziente = useAresStore((s) =>
-    s.modalPazienteId
-      ? s.pazienti.find((p) => p.id === s.modalPazienteId) ?? null
+    (pazienteIdOverride ?? s.modalPazienteId)
+      ? s.pazienti.find((p) => p.id === (pazienteIdOverride ?? s.modalPazienteId)) ?? null
       : null,
   )
   const impostazioni = useAresStore((s) => s.impostazioni)
+  const modalMode = useAresStore((s) => s.modalPazienteMode)
   const eventi = useAresStore((s) => s.eventi)
   const missioni = useAresStore((s) => s.missioni)
   const mezzi = useAresStore((s) => s.mezzi)
@@ -59,6 +70,8 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
   const deleteValutazione = useAresStore((s) => s.deleteValutazione)
 
   const [expandedValId, setExpandedValId] = useState<string | null>(null)
+  const [confirmClosePma, setConfirmClosePma] = useState(false)
+  const [medicoDimettente, setMedicoDimettente] = useState('')
 
   const mezziTrasportoIds = useMemo(() => {
     if (!paziente) return [] as string[]
@@ -83,6 +96,9 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
   }, [missioni, mezzi, paziente])
 
   if (!pazienteId || !paziente) return null
+  const pmaCompactMode = compactForPma ?? modalMode === 'pma'
+  const mediciPma = impostazioni.mediciPma ?? []
+  const medicoDefault = mediciPma[0] ?? ''
 
   const evento = eventi.find((e) => e.id === paziente.eventoId)
   const trasportato = paziente.esito === 'TRASPORTATO'
@@ -95,42 +111,32 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
   const valPma = valPaz.filter((v): v is ValutazionePMA => v.tipo === 'PMA')
 
   const patchVal = (id: string, patch: Record<string, unknown>) => {
-    const cur = valutazioni.find((x) => x.id === id)
     updateValutazione(id, patch)
-    if (!cur || cur.tipo !== 'PMA') return
-    const merged = { ...cur, ...patch } as ValutazionePMA
-    if (
-      paziente.tipoDestinazioneTrasporto === 'PMA' &&
-      !paziente.trasportoCompletatoAt &&
-      esitoPmaChiudePaziente(merged.esito, merged.esitoAltroNote)
-    ) {
-      updatePaziente(paziente.id, {
-        trasportoCompletatoAt: new Date().toISOString(),
-      })
-    }
   }
 
   const expanded = valPaz.find((v) => v.id === expandedValId) ?? null
 
   return (
     <div
-      className="ares-modal-backdrop ares-modal-stack"
+      className={embedded ? 'ares-pma-patient-view' : 'ares-modal-backdrop ares-modal-stack'}
       role="presentation"
-      onClick={onClose}
+      onClick={embedded ? undefined : onClose}
     >
       <div
-        className="ares-modal"
+        className={`${embedded ? 'ares-pma-patient-shell' : 'ares-modal'}${pmaCompactMode ? ' ares-modal--pma' : ''}`}
         role="dialog"
-        aria-modal="true"
+        aria-modal={embedded ? undefined : 'true'}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="ares-modal-head">
           <h2>
             Paziente {paziente.cognome || paziente.nome || paziente.id}
           </h2>
-          <button type="button" className="ares-btn ghost" onClick={onClose}>
-            Chiudi
-          </button>
+          {!embedded && (
+            <button type="button" className="ares-btn ghost" onClick={onClose}>
+              Chiudi
+            </button>
+          )}
         </header>
         <div className="ares-modal-scroll">
           <p className="ares-muted">
@@ -138,7 +144,7 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
             {evento && ` · ${evento.indirizzo || '—'}`}
           </p>
 
-          <div className="ares-form-grid">
+          {!pmaCompactMode && <div className="ares-form-grid">
             <label>
               Nome
               <input
@@ -279,6 +285,34 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
                     })}
                   </select>
                 </label>
+                <label>
+                  Codice colore trasporto
+                  <select
+                    value={paziente.codiceTrasporto}
+                    onChange={(e) =>
+                      updatePaziente(paziente.id, {
+                        codiceTrasporto: e.target.value as CodiceEvento,
+                      })
+                    }
+                  >
+                    <option value="VERDE">VERDE</option>
+                    <option value="GIALLO">GIALLO</option>
+                    <option value="ROSSO">ROSSO</option>
+                  </select>
+                </label>
+                <div className="full">
+                  <button
+                    type="button"
+                    className="ares-btn primary"
+                    onClick={() => {
+                      updatePaziente(paziente.id, {
+                        codiceTrasporto: paziente.codiceTrasporto,
+                      })
+                    }}
+                  >
+                    Salva
+                  </button>
+                </div>
               </>
             )}
             {paziente.arrivoInOspedaleAt &&
@@ -300,7 +334,7 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
                 {formatDataOra(paziente.trasportoCompletatoAt)}
               </p>
             )}
-          </div>
+          </div>}
 
           <hr className="ares-hr" />
 
@@ -451,6 +485,8 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
           {expanded && expanded.tipo === 'PMA' && (
             <ValutazionePMAEditor
               v={expanded}
+              presetDimissione={impostazioni.presetDimissione ?? []}
+              manovreOpts={impostazioni.manovrePMA ?? []}
               onChange={(patch) => patchVal(expanded.id, patch)}
               onDelete={() => {
                 deleteValutazione(expanded.id)
@@ -460,6 +496,93 @@ export function PatientDetailModal({ onClose }: { onClose: () => void }) {
           )}
 
           <div className="ares-danger-zone">
+            {paziente.tipoDestinazioneTrasporto === 'PMA' && (
+              <button
+                type="button"
+                className="ares-btn warning"
+                onClick={() =>
+                  setConfirmClosePma(true)
+                }
+                disabled={!!paziente.trasportoCompletatoAt}
+              >
+                Chiudi paziente PMA
+              </button>
+            )}
+            {confirmClosePma && (
+              <div className="ares-card">
+                <label>
+                  Medico dimettente
+                  <select
+                    value={medicoDimettente || medicoDefault}
+                    onChange={(e) => setMedicoDimettente(e.target.value)}
+                  >
+                    {(mediciPma.length > 0 ? mediciPma : ['']).map((m) => (
+                      <option key={m || 'vuoto'} value={m}>
+                        {m || '—'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="ares-inline">
+                  <button
+                    type="button"
+                    className="ares-btn primary"
+                    onClick={() => {
+                      updatePaziente(paziente.id, {
+                        trasportoCompletatoAt: new Date().toISOString(),
+                        medicoDimissionePma: medicoDimettente || medicoDefault,
+                      })
+                      setConfirmClosePma(false)
+                    }}
+                  >
+                    Conferma chiusura
+                  </button>
+                  <button
+                    type="button"
+                    className="ares-btn ghost"
+                    onClick={() => setConfirmClosePma(false)}
+                  >
+                    Annulla
+                  </button>
+                </div>
+              </div>
+            )}
+            {valPma.length > 0 && (
+              <button
+                type="button"
+                className="ares-btn secondary"
+                onClick={() => {
+                  const latest = [...valPma].sort((a, b) =>
+                    b.dataOraArrivo.localeCompare(a.dataOraArrivo),
+                  )[0]
+                  const html = `
+                    <html><body>
+                    <h1>Scheda PMA ${paziente.id}</h1>
+                    <h2>Anagrafica</h2>
+                    <p>${[paziente.nome, paziente.cognome].filter(Boolean).join(' ') || '-'}</p>
+                    <p>Nascita: ${paziente.dataNascita || '-'}</p>
+                    <h2>Valutazione PMA</h2>
+                    <p>Arrivo: ${formatDataOra(latest.dataOraArrivo)}</p>
+                    <p>APR: ${latest.apr || '-'}</p>
+                    <p>Allergie: ${latest.allergie || '-'}</p>
+                    <p>APP: ${latest.app || '-'}</p>
+                    <p>EO: ${latest.eo || '-'}</p>
+                    <p>Esito: ${latest.esito || '-'}</p>
+                    <p>Note dimissione: ${latest.noteDimissione || '-'}</p>
+                    <p>Medico dimettente: ${paziente.medicoDimissionePma || '-'}</p>
+                    </body></html>
+                  `
+                  const w = window.open('', '_blank')
+                  if (!w) return
+                  w.document.write(html)
+                  w.document.close()
+                  w.focus()
+                  w.print()
+                }}
+              >
+                Genera scheda PDF
+              </button>
+            )}
             <button
               type="button"
               className="ares-btn danger"

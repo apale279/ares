@@ -1,3 +1,15 @@
+# Telegram Bot Backend
+
+Run the Telegram backend worker:
+
+1. Set environment variables (see `backend/.env.example`)
+2. Apply Supabase migration `supabase/migrations/20260429190000_telegram_mezzo_claims.sql`
+3. Start bot:
+
+```bash
+npm run bot:telegram
+```
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

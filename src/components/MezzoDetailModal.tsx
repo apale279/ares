@@ -6,6 +6,7 @@ export function MezzoDetailModal({ onClose }: { onClose: () => void }) {
   const mezzo = useAresStore((s) =>
     s.modalMezzoId ? s.mezzi.find((m) => m.id === s.modalMezzoId) ?? null : null,
   )
+  const updateMezzo = useAresStore((s) => s.updateMezzo)
 
   if (!mezzoId || !mezzo) return null
 
@@ -29,6 +30,18 @@ export function MezzoDetailModal({ onClose }: { onClose: () => void }) {
           <p>
             Stato: <strong>{mezzo.stato}</strong>
           </p>
+          <label className="ares-check">
+            <input
+              type="checkbox"
+              checked={mezzo.stato === 'NON_DISPONIBILE'}
+              onChange={(e) =>
+                updateMezzo(mezzo.id, {
+                  stato: e.target.checked ? 'NON_DISPONIBILE' : 'DISPONIBILE',
+                })
+              }
+            />
+            Mezzo non disponibile (guasto / fermo)
+          </label>
           <p className="ares-muted">Sigla radio: {mezzo.siglaRadio || '—'}</p>
           <p className="ares-muted">Targa: {mezzo.targa || '—'}</p>
           <label>

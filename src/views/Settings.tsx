@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_IMPOSTAZIONI } from '../constants'
-import type { Mezzo } from '../types'
+import type { AppRouteKey, Mezzo, RankUtente, Utente } from '../types'
 import { testoMultirigaDaVoci, vociDaTestoMultiriga } from '../utils/textLists'
 import { MezzoFormModal } from '../components/MezzoFormModal'
 import { useAresStore } from '../store/aresStore'
+
+const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'diario', label: 'Diario' },
+  { key: 'ricerca', label: 'Ricerca' },
+  { key: 'impostazioni', label: 'Impostazioni' },
+  { key: 'pma', label: 'PMA' },
+  { key: 'mezzo', label: 'Vista mezzo' },
+]
 
 function ImpostazioniTextPanel({
   title,
@@ -53,9 +62,22 @@ export function Settings() {
 
   const [mezzoModalOpen, setMezzoModalOpen] = useState(false)
   const [editingMezzo, setEditingMezzo] = useState<Mezzo | null>(null)
+  const [rankNome, setRankNome] = useState('')
+  const [rankRoutes, setRankRoutes] = useState<AppRouteKey[]>(['dashboard'])
+  const [utenteNome, setUtenteNome] = useState('')
+  const [utentePassword, setUtentePassword] = useState('')
+  const [utenteRankId, setUtenteRankId] = useState('')
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
+  const ranks: RankUtente[] = impostazioni.rankUtente ?? []
+  const utenti: Utente[] = impostazioni.utenti ?? []
+
+  const toggleRankRoute = (route: AppRouteKey) => {
+    setRankRoutes((prev) =>
+      prev.includes(route) ? prev.filter((x) => x !== route) : [...prev, route],
+    )
+  }
 
   return (
     <div className="ares-settings">
@@ -117,6 +139,12 @@ export function Settings() {
             value={impostazioni.pma}
             onSave={(pma) => setImpostazioni({ pma })}
           />
+          <ImpostazioniTextPanel
+            title="Medici PMA"
+            description="Lista medici per dimissione paziente PMA (il primo e default)."
+            value={impostazioni.mediciPma ?? []}
+            onSave={(mediciPma) => setImpostazioni({ mediciPma })}
+          />
         </div>
       </section>
 
@@ -139,6 +167,253 @@ export function Settings() {
             value={impostazioni.manovreMSA}
             onSave={(manovreMSA) => setImpostazioni({ manovreMSA })}
           />
+          <ImpostazioniTextPanel
+            title="Manovre effettuate PMA"
+            description="Multi-select nelle valutazioni PMA."
+            value={impostazioni.manovrePMA ?? []}
+            onSave={(manovrePMA) => setImpostazioni({ manovrePMA })}
+          />
+          <ImpostazioniTextPanel
+            title="Preset dimissione PMA"
+            description="Frasi precompilate richiamabili in valutazione PMA."
+            value={impostazioni.presetDimissione ?? []}
+            onSave={(presetDimissione) => setImpostazioni({ presetDimissione })}
+          />
+        </div>
+      </section>
+
+      <section className="ares-settings-entity-block">
+        <h1 className="ares-settings-entity-title">Utenti e Rank</h1>
+        <div className="ares-settings-entity-grid">
+          <section className="ares-settings-entity-panel">
+            <h2>Crea rank</h2>
+            <label>
+              Nome rank
+              <input
+                value={rankNome}
+                onChange={(e) => setRankNome(e.target.value)}
+                placeholder="Es. Coordinatore"
+              />
+            </label>
+            <div className="ares-list-compact">
+              {ROUTE_OPTS.map((r) => (
+                <label key={r.key} className="ares-check">
+                  <input
+                    type="checkbox"
+                    checked={rankRoutes.includes(r.key)}
+                    onChange={() => toggleRankRoute(r.key)}
+                  />
+                  {r.label}
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="ares-btn primary"
+              onClick={() => {
+                const nome = rankNome.trim()
+                if (!nome) return
+                const next: RankUtente = {
+                  id: `rank_${crypto.randomUUID()}`,
+                  nome,
+                  routeKeys: rankRoutes.length ? rankRoutes : ['dashboard'],
+                }
+                setImpostazioni({ rankUtente: [...ranks, next] })
+                setRankNome('')
+                setRankRoutes(['dashboard'])
+                if (!utenteRankId) setUtenteRankId(next.id)
+              }}
+            >
+              Aggiungi rank
+            </button>
+            <ul className="ares-list">
+              {ranks.map((r) => (
+                <li key={r.id} className="ares-card">
+                  <label>
+                    Nome rank
+                    <input
+                      value={r.nome}
+                      onChange={(e) =>
+                        setImpostazioni({
+                          rankUtente: ranks.map((x) =>
+                            x.id === r.id ? { ...x, nome: e.target.value } : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <div className="ares-list-compact">
+                    {ROUTE_OPTS.map((opt) => (
+                      <label key={`${r.id}-${opt.key}`} className="ares-check">
+                        <input
+                          type="checkbox"
+                          checked={r.routeKeys.includes(opt.key)}
+                          onChange={() => {
+                            const routeKeys = r.routeKeys.includes(opt.key)
+                              ? r.routeKeys.filter((k) => k !== opt.key)
+                              : [...r.routeKeys, opt.key]
+                            setImpostazioni({
+                              rankUtente: ranks.map((x) =>
+                                x.id === r.id
+                                  ? {
+                                      ...x,
+                                      routeKeys: routeKeys.length
+                                        ? routeKeys
+                                        : ['dashboard'],
+                                    }
+                                  : x,
+                              ),
+                            })
+                          }}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="ares-btn small danger"
+                    onClick={() => {
+                      const used = utenti.some((u) => u.rankId === r.id)
+                      if (used) {
+                        alert('Rank associato a utenti: cambia prima il rank degli utenti.')
+                        return
+                      }
+                      setImpostazioni({
+                        rankUtente: ranks.filter((x) => x.id !== r.id),
+                      })
+                    }}
+                  >
+                    Elimina rank
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="ares-settings-entity-panel">
+            <h2>Crea utente</h2>
+            <label>
+              Nome utente
+              <input
+                value={utenteNome}
+                onChange={(e) => setUtenteNome(e.target.value)}
+                placeholder="nome.utente"
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                value={utentePassword}
+                onChange={(e) => setUtentePassword(e.target.value)}
+              />
+            </label>
+            <label>
+              Rank
+              <select
+                value={utenteRankId}
+                onChange={(e) => setUtenteRankId(e.target.value)}
+              >
+                <option value="">—</option>
+                {ranks.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="ares-btn primary"
+              onClick={() => {
+                const nome = utenteNome.trim()
+                if (!nome || !utentePassword || !utenteRankId) return
+                if (utenti.some((u) => u.nomeUtente === nome)) {
+                  alert('Nome utente gia esistente.')
+                  return
+                }
+                const next: Utente = {
+                  id: `user_${crypto.randomUUID()}`,
+                  nomeUtente: nome,
+                  password: utentePassword,
+                  rankId: utenteRankId,
+                }
+                setImpostazioni({ utenti: [...utenti, next] })
+                setUtenteNome('')
+                setUtentePassword('')
+              }}
+            >
+              Aggiungi utente
+            </button>
+            <ul className="ares-list">
+              {utenti.map((u) => (
+                <li key={u.id} className="ares-card">
+                  <label>
+                    Nome utente
+                    <input
+                      value={u.nomeUtente}
+                      onChange={(e) =>
+                        setImpostazioni({
+                          utenti: utenti.map((x) =>
+                            x.id === u.id
+                              ? { ...x, nomeUtente: e.target.value }
+                              : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={u.password}
+                      onChange={(e) =>
+                        setImpostazioni({
+                          utenti: utenti.map((x) =>
+                            x.id === u.id ? { ...x, password: e.target.value } : x,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Rank
+                    <select
+                      value={u.rankId}
+                      onChange={(e) =>
+                        setImpostazioni({
+                          utenti: utenti.map((x) =>
+                            x.id === u.id ? { ...x, rankId: e.target.value } : x,
+                          ),
+                        })
+                      }
+                    >
+                      {ranks.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="ares-inline">
+                    <button
+                      type="button"
+                      className="ares-btn small danger"
+                      onClick={() =>
+                        setImpostazioni({
+                          utenti: utenti.filter((x) => x.id !== u.id),
+                        })
+                      }
+                    >
+                      Elimina
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </section>
 

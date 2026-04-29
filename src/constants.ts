@@ -1,4 +1,4 @@
-import type { StatoMissione } from './types'
+import type { Impostazioni, StatoMissione } from './types'
 
 export const MISSION_STATE_ORDER: StatoMissione[] = [
   'ALLERTARE',
@@ -28,7 +28,7 @@ export const CODICE_EVENTO_COLOR: Record<string, string> = {
   ROSSO: '#ef4444',
 }
 
-export const DEFAULT_IMPOSTAZIONI = {
+export const DEFAULT_IMPOSTAZIONI: Impostazioni = {
   dettagliMedico: ['dolore toracico', 'dispnea', 'sincope', 'alterazione stato coscienza'],
   dettagliTrauma: ['trauma cranico', 'politrauma', 'trauma arti', 'ustioni'],
   dettagliNonNoto: ['da accertare', 'segnalazione generica'],
@@ -50,6 +50,27 @@ export const DEFAULT_IMPOSTAZIONI = {
     'collare cervicale',
     'medicazione',
     'monitoraggio',
+  ],
+  manovrePMA: ['osservazione clinica', 'medicazione', 'monitoraggio', 'terapia'],
+  presetDimissione: [
+    'Controllo dal MMG entro 24 ore.',
+    'Rientro immediato in PS in caso di peggioramento.',
+  ],
+  mediciPma: ['Dr. Rossi', 'Dr.ssa Bianchi'],
+  rankUtente: [
+    {
+      id: 'rank_admin',
+      nome: 'ADMIN',
+      routeKeys: ['dashboard', 'diario', 'ricerca', 'impostazioni', 'pma', 'mezzo'],
+    },
+  ],
+  utenti: [
+    {
+      id: 'user_admin',
+      nomeUtente: 'admin',
+      password: 'admin',
+      rankId: 'rank_admin',
+    },
   ],
 }
 

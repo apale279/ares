@@ -70,7 +70,9 @@ export function nuovaValutazionePMA(
     eo: '',
     farmaciSomministrati: [],
     rivalutazioni: [],
+    manovreEffettuate: [],
     esito: '',
     esitoAltroNote: '',
+    noteDimissione: '',
   }
 }

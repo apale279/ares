@@ -17,6 +17,12 @@ export function migrateImpostazioni(
     pma: raw?.pma ?? DEFAULT_IMPOSTAZIONI.pma,
     manovreMSB: raw?.manovreMSB ?? DEFAULT_IMPOSTAZIONI.manovreMSB,
     manovreMSA: raw?.manovreMSA ?? DEFAULT_IMPOSTAZIONI.manovreMSA,
+    manovrePMA: raw?.manovrePMA ?? DEFAULT_IMPOSTAZIONI.manovrePMA,
+    presetDimissione:
+      raw?.presetDimissione ?? DEFAULT_IMPOSTAZIONI.presetDimissione,
+    mediciPma: raw?.mediciPma ?? DEFAULT_IMPOSTAZIONI.mediciPma,
+    rankUtente: raw?.rankUtente ?? DEFAULT_IMPOSTAZIONI.rankUtente,
+    utenti: raw?.utenti ?? DEFAULT_IMPOSTAZIONI.utenti,
   }
 }
 
@@ -27,8 +33,10 @@ export function migratePazienti(list: Paziente[]): Paziente[] {
     tipoDestinazioneTrasporto:
       p.tipoDestinazioneTrasporto ?? ('OSPEDALE' as Paziente['tipoDestinazioneTrasporto']),
     pmaDestinazione: p.pmaDestinazione ?? '',
+    codiceTrasporto: p.codiceTrasporto ?? ('VERDE' as Paziente['codiceTrasporto']),
     pmaArrivoAt: p.pmaArrivoAt ?? null,
     trasportoCompletatoAt: p.trasportoCompletatoAt ?? null,
+    medicoDimissionePma: p.medicoDimissionePma ?? '',
   }))
 }
 

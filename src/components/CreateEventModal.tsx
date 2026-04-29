@@ -33,6 +33,7 @@ export function CreateEventModal({
   const [descrizione, setDescrizione] = useState('')
   const [codice, setCodice] = useState<CodiceEvento>('GIALLO')
   const [segnalatoDa, setSegnalatoDa] = useState('')
+  const [eventoInAttesa, setEventoInAttesa] = useState(false)
   const [geoBusy, setGeoBusy] = useState(false)
   const [mezzoMissione, setMezzoMissione] = useState('')
   const [pazNome, setPazNome] = useState('')
@@ -50,13 +51,14 @@ export function CreateEventModal({
     const eventoId = addEvento({
       indirizzoLimitato,
       indirizzo,
-      lat: indirizzoLimitato ? null : lat,
-      lng: indirizzoLimitato ? null : lng,
+      lat,
+      lng,
       tipoEvento,
       dettaglioEvento,
       descrizione,
       codice,
       segnalatoDa,
+      eventoInAttesa,
     })
 
     // addEvento crea sempre un primo paziente vuoto: lo compiliamo subito.
@@ -101,10 +103,10 @@ export function CreateEventModal({
               checked={indirizzoLimitato}
               onChange={(e) => setIndirizzoLimitato(e.target.checked)}
             />
-            Evento limitato (testo libero)
+            Luogo senza nome
           </label>
           <label>
-            {indirizzoLimitato ? 'Luogo / settore' : 'Indirizzo'}
+            {indirizzoLimitato ? 'Nome luogo' : 'Indirizzo'}
             {indirizzoLimitato ? (
               <input
                 value={indirizzo}
@@ -136,51 +138,49 @@ export function CreateEventModal({
               />
             )}
           </label>
-          {!indirizzoLimitato && (
-            <div className="ares-row">
-              <label>
-                Lat
-                <input
-                  type="number"
-                  step="any"
-                  value={lat ?? ''}
-                  onChange={(e) =>
-                    setLat(e.target.value === '' ? null : Number(e.target.value))
-                  }
-                />
-              </label>
-              <label>
-                Lng
-                <input
-                  type="number"
-                  step="any"
-                  value={lng ?? ''}
-                  onChange={(e) =>
-                    setLng(e.target.value === '' ? null : Number(e.target.value))
-                  }
-                />
-              </label>
-              <button
-                type="button"
-                className="ares-btn secondary"
-                disabled={geoBusy}
-                onClick={async () => {
-                  setGeoBusy(true)
-                  try {
-                    const hit = await geocodeIndirizzo(indirizzo.trim())
-                    if (hit) {
-                      setLat(hit.lat)
-                      setLng(hit.lng)
-                    } else alert('Indirizzo non trovato.')
-                  } finally {
-                    setGeoBusy(false)
-                  }
-                }}
-              >
-                {geoBusy ? '…' : 'Cerca coordinate'}
-              </button>
-            </div>
-          )}
+          <div className="ares-row">
+            <label>
+              Lat
+              <input
+                type="number"
+                step="any"
+                value={lat ?? ''}
+                onChange={(e) =>
+                  setLat(e.target.value === '' ? null : Number(e.target.value))
+                }
+              />
+            </label>
+            <label>
+              Lng
+              <input
+                type="number"
+                step="any"
+                value={lng ?? ''}
+                onChange={(e) =>
+                  setLng(e.target.value === '' ? null : Number(e.target.value))
+                }
+              />
+            </label>
+            <button
+              type="button"
+              className="ares-btn secondary"
+              disabled={geoBusy || indirizzoLimitato}
+              onClick={async () => {
+                setGeoBusy(true)
+                try {
+                  const hit = await geocodeIndirizzo(indirizzo.trim())
+                  if (hit) {
+                    setLat(hit.lat)
+                    setLng(hit.lng)
+                  } else alert('Indirizzo non trovato.')
+                } finally {
+                  setGeoBusy(false)
+                }
+              }}
+            >
+              {geoBusy ? '…' : 'Cerca coordinate'}
+            </button>
+          </div>
           <div>
             <span className="ares-label">Tipo evento</span>
             <div className="ares-seg">
@@ -235,6 +235,14 @@ export function CreateEventModal({
               value={segnalatoDa}
               onChange={(e) => setSegnalatoDa(e.target.value)}
             />
+          </label>
+          <label className="ares-check">
+            <input
+              type="checkbox"
+              checked={eventoInAttesa}
+              onChange={(e) => setEventoInAttesa(e.target.checked)}
+            />
+            Evento in attesa
           </label>
           <section className="ares-section">
             <h3 className="ares-section-title">Missione iniziale (opzionale)</h3>

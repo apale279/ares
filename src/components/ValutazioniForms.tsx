@@ -433,10 +433,14 @@ export function ValutazioneMSAEditor({
 
 export function ValutazionePMAEditor({
   v,
+  presetDimissione,
+  manovreOpts,
   onChange,
   onDelete,
 }: {
   v: ValutazionePMA
+  presetDimissione: string[]
+  manovreOpts: string[]
   onChange: (patch: Partial<ValutazionePMA>) => void
   onDelete: () => void
 }) {
@@ -613,6 +617,43 @@ export function ValutazionePMAEditor({
           </div>
         ))}
       </div>
+      <label>
+        Preset dimissione
+        <select
+          value=""
+          onChange={(e) => {
+            if (!e.target.value) return
+            const prefix = v.noteDimissione.trim()
+            onChange({
+              noteDimissione: prefix
+                ? `${prefix}\n${e.target.value}`
+                : e.target.value,
+            })
+            e.currentTarget.value = ''
+          }}
+        >
+          <option value="">— Seleziona preset —</option>
+          {presetDimissione.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Note alla dimissione
+        <textarea
+          rows={4}
+          value={v.noteDimissione}
+          onChange={(e) => onChange({ noteDimissione: e.target.value })}
+        />
+      </label>
+      <MultiRow
+        label="Manovre PMA"
+        options={manovreOpts}
+        selected={v.manovreEffettuate}
+        onChange={(manovreEffettuate) => onChange({ manovreEffettuate })}
+      />
       <label>
         Esito
         <select
