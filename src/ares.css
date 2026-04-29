@@ -11,6 +11,8 @@
   --ares-danger: #b91c1c;
   --ares-warn: #a16207;
   --ares-font: 'Segoe UI', system-ui, sans-serif;
+  /** Incremento px solo per testo contenuto (vedi `fontScale.ts`) */
+  --ares-text-extra: 0px;
 }
 
 *,
@@ -30,6 +32,30 @@ body {
   font-family: var(--ares-font);
   background: var(--ares-bg);
   color: var(--ares-text);
+}
+
+.ares-main,
+.ares-modal-backdrop {
+  font-size: calc(14px + var(--ares-text-extra, 0px));
+}
+
+.ares-topbar {
+  font-size: 14px;
+}
+
+.ares-btn,
+.ares-btn-icon,
+.ares-nav > button,
+.ares-seg-btn,
+.ares-panel-drag,
+button.ares-link-mission,
+.ares-photon-clear,
+.ares-photon-result-btn {
+  font-size: 14px;
+}
+
+.ares-btn.small {
+  font-size: 12px;
 }
 
 .ares-app {

@@ -4,6 +4,7 @@ import { DEFAULT_IMPOSTAZIONI, MISSION_STATE_ORDER } from '../constants'
 import {
   computeDefaultLayout,
   LAYOUT_VERSION,
+  reconcileQuadLayoutAfterPanelChange,
   workspaceArea,
 } from '../utils/dashboardLayout'
 import type {
@@ -77,6 +78,11 @@ export interface AresState {
   setImpostazioni: (p: Partial<Impostazioni>) => void
   setLayout: (l: Partial<LayoutPannelli>) => void
   updatePanelRect: (key: keyof LayoutPannelli, rect: Partial<LayoutPannelli[keyof LayoutPannelli]>) => void
+  /** Griglia 2×2 senza sovrapposizioni dopo drag/resize pannello */
+  applyPanelLayoutQuad: (
+    key: keyof LayoutPannelli,
+    rect: Partial<LayoutPannelli[keyof LayoutPannelli]>,
+  ) => void
   requestMapFocus: (lat: number, lng: number) => void
   clearMapFocus: () => void
   /** Ripristina layout pannelli dashboard a griglia su schermo */
@@ -173,6 +179,15 @@ export const useAresStore = create<AresState>()(
             [key]: { ...s.layout[key], ...rect },
           },
         })),
+
+      applyPanelLayoutQuad: (key, rect) =>
+        set((s) => {
+          const merged = { ...s.layout[key], ...rect }
+          const { width, height } = workspaceArea()
+          return {
+            layout: reconcileQuadLayoutAfterPanelChange(key, merged, width, height),
+          }
+        }),
 
       addMezzo: (partial) => {
         const id = nuovoIdMezzo()

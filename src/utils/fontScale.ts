@@ -1,13 +1,15 @@
-/** Scala la dimensione base del testo (rem) tramite `html { font-size }`. */
+/**
+ * Scala il testo del contenuto (non i pulsanti) tramite `--ares-text-extra` su `:root`.
+ * I pulsanti hanno `font-size` fisso in CSS.
+ */
 
 const STORAGE_KEY = 'ares-font-step'
-const BASE_PX = 16
-const MIN_PX = 12
-const MAX_PX = 26
+const EXTRA_MIN = -4
+const EXTRA_MAX = 10
 
-/** Step minimo/maximo rispetto a BASE_PX (es. -4 … +10). */
-export const FONT_STEP_MIN = MIN_PX - BASE_PX
-export const FONT_STEP_MAX = MAX_PX - BASE_PX
+/** Step minimo/maximo in pixel aggiunti al testo contenuto. */
+export const FONT_STEP_MIN = EXTRA_MIN
+export const FONT_STEP_MAX = EXTRA_MAX
 
 function clampStep(step: number): number {
   return Math.max(FONT_STEP_MIN, Math.min(FONT_STEP_MAX, Math.trunc(step)))
@@ -24,7 +26,8 @@ export function getFontStep(): number {
 
 export function applyStoredFontStep(): void {
   const step = getFontStep()
-  document.documentElement.style.fontSize = `${BASE_PX + step}px`
+  document.documentElement.style.removeProperty('font-size')
+  document.documentElement.style.setProperty('--ares-text-extra', `${step}px`)
 }
 
 /** Delta tipicamente +1 o -1. Restituisce il nuovo step (dopo clamp). */
@@ -35,6 +38,7 @@ export function adjustFontStep(delta: number): number {
   } catch {
     /* ignore */
   }
-  document.documentElement.style.fontSize = `${BASE_PX + next}px`
+  document.documentElement.style.removeProperty('font-size')
+  document.documentElement.style.setProperty('--ares-text-extra', `${next}px`)
   return next
 }

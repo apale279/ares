@@ -16,10 +16,10 @@ export function DraggablePanel({
   zIndex?: number
 }) {
   const rect = useAresStore((s) => s.layout[panelKey])
-  const updatePanelRect = useAresStore((s) => s.updatePanelRect)
+  const applyPanelLayoutQuad = useAresStore((s) => s.applyPanelLayoutQuad)
 
   const onDragStop = (_e: unknown, d: { x: number; y: number }) => {
-    updatePanelRect(panelKey, { x: d.x, y: d.y })
+    applyPanelLayoutQuad(panelKey, { x: d.x, y: d.y })
   }
 
   const onResizeStop = (
@@ -29,7 +29,7 @@ export function DraggablePanel({
     _delta: unknown,
     pos: { x: number; y: number },
   ) => {
-    updatePanelRect(panelKey, {
+    applyPanelLayoutQuad(panelKey, {
       x: pos.x,
       y: pos.y,
       width: ref.offsetWidth,
