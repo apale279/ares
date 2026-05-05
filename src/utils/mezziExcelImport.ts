@@ -1,4 +1,4 @@
-import type { Equipaggio, Mezzo } from '../types'
+import type { Equipaggio, Mezzo, StatoMezzo } from '../types'
 import { searchPhoton } from './photon'
 
 export type MezziImportSummary = {
@@ -18,7 +18,7 @@ function cell(row: unknown[], i: number): string {
   return String(v).trim()
 }
 
-/** Riga colonne A–Q da sheet EQUIPAGGI */
+/** Riga colonne F–Q (indici 5–16) da sheet EQUIPAGGI */
 function buildEquipaggio(row: unknown[]): Equipaggio {
   return {
     autista: {
@@ -50,6 +50,24 @@ function isLikelyHeaderRow(row: unknown[]): boolean {
   if (b === 'sigla' || b === 'sigla (univoca)') return true
   if (a === 'tipo' && (b === '' || b.includes('sigla'))) return true
   return false
+}
+
+/** Colonna R (indice 17): stato mezzo. Vuoto = nessun override in update / default in create. */
+function parseStatoMezzoExcel(raw: string): StatoMezzo | null {
+  const s = raw.trim()
+  if (!s) return null
+  const u = s.toUpperCase().replace(/\s+/g, '_')
+  if (u === 'DISPONIBILE' || u === 'DISP' || u === 'LIBERO') return 'DISPONIBILE'
+  if (u === 'OCCUPATO' || u === 'OCC' || u === 'IN_MISSIONE') return 'OCCUPATO'
+  if (
+    u === 'NON_DISPONIBILE' ||
+    u === 'INDISPONIBILE' ||
+    u === 'NOT_AVAILABLE' ||
+    /^NON[\s_]*DISPON/i.test(s)
+  ) {
+    return 'NON_DISPONIBILE'
+  }
+  return null
 }
 
 function normalizeTipo(raw: string, tipiMezzo: string[]): string {
@@ -97,7 +115,8 @@ function pickEquipaggiSheet(
 
 /**
  * Importa righe dal foglio EQUIPAGGI (primo foglio se manca il nome).
- * Colonne A–Q come da specifica. Tipo non in elenco → primo tipo in impostazioni.
+ * Colonne A–Q come da specifica; colonna R = stato (DISPONIBILE / OCCUPATO / NON DISPONIBILE).
+ * Tipo non in elenco → primo tipo in impostazioni.
  * Stazionamento col. E geocodificato (Photon/Mapbox+Nominatim). Sigla duplicata → update.
  */
 export async function importMezziFromExcelBuffer(
@@ -105,7 +124,12 @@ export async function importMezziFromExcelBuffer(
   deps: {
     tipiMezzo: string[]
     getMezzi: () => Mezzo[]
-    addMezzo: (partial: Omit<Mezzo, 'id' | 'equipaggio' | 'stato'> & { equipaggio?: Mezzo['equipaggio'] }) => string
+    addMezzo: (
+      partial: Omit<Mezzo, 'id' | 'equipaggio' | 'stato'> & {
+        equipaggio?: Mezzo['equipaggio']
+        stato?: Mezzo['stato']
+      },
+    ) => string
     updateMezzo: (id: string, patch: Partial<Mezzo>) => void
     geoDelayMs?: number
   },
@@ -165,6 +189,9 @@ export async function importMezziFromExcelBuffer(
     const equipaggio = buildEquipaggio(row)
 
     const stazText = cell(row, 4)
+    const statoRaw = cell(row, 17)
+    const statoParsed = parseStatoMezzoExcel(statoRaw)
+
     let geo: { stazionamento: string; lat: number | null; lng: number | null }
     if (stazText.length >= 3) {
       if (geocodeCallCount > 0) await sleep(geoDelay)
@@ -184,7 +211,7 @@ export async function importMezziFromExcelBuffer(
       .find((m) => m.sigla.trim().toLowerCase() === sigla.toLowerCase())
 
     if (existing) {
-      deps.updateMezzo(existing.id, {
+      const patch: Partial<Mezzo> = {
         tipo,
         sigla,
         siglaRadio,
@@ -193,9 +220,23 @@ export async function importMezziFromExcelBuffer(
         stazionamentoLat: geo.lat,
         stazionamentoLng: geo.lng,
         equipaggio,
-      })
+      }
+      if (statoRaw) {
+        if (statoParsed) patch.stato = statoParsed
+        else {
+          summary.warnings.push(
+            `Riga ${i + 1} (${sigla}): stato «${statoRaw}» non riconosciuto, lasciato invariato.`,
+          )
+        }
+      }
+      deps.updateMezzo(existing.id, patch)
       summary.updated++
     } else {
+      if (statoRaw && !statoParsed) {
+        summary.warnings.push(
+          `Riga ${i + 1} (${sigla}): stato «${statoRaw}» non riconosciuto, usato DISPONIBILE.`,
+        )
+      }
       deps.addMezzo({
         tipo,
         sigla,
@@ -205,6 +246,7 @@ export async function importMezziFromExcelBuffer(
         stazionamentoLat: geo.lat,
         stazionamentoLng: geo.lng,
         equipaggio,
+        stato: statoParsed ?? 'DISPONIBILE',
       })
       summary.created++
     }

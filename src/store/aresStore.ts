@@ -16,6 +16,7 @@ import type {
   MissionStateLog,
   Nota,
   Paziente,
+  StatoMezzo,
   StatoEvento,
   StatoMissione,
   StatoNota,
@@ -115,7 +116,12 @@ export interface AresState {
   /** Ripristina layout pannelli dashboard a griglia su schermo */
   resetLayoutVista: () => void
 
-  addMezzo: (partial: Omit<Mezzo, 'id' | 'equipaggio' | 'stato'> & { equipaggio?: Mezzo['equipaggio'] }) => string
+  addMezzo: (
+    partial: Omit<Mezzo, 'id' | 'equipaggio' | 'stato'> & {
+      equipaggio?: Mezzo['equipaggio']
+      stato?: StatoMezzo
+    },
+  ) => string
   updateMezzo: (id: string, patch: Partial<Mezzo>) => void
   deleteMezzo: (id: string) => void
 
@@ -230,6 +236,12 @@ export const useAresStore = create<AresState>()(
 
       addMezzo: (partial) => {
         const id = nuovoIdMezzo()
+        const st: StatoMezzo =
+          partial.stato === 'OCCUPATO' ||
+          partial.stato === 'DISPONIBILE' ||
+          partial.stato === 'NON_DISPONIBILE'
+            ? partial.stato
+            : 'DISPONIBILE'
         const mezzo: Mezzo = {
           id,
           tipo: partial.tipo,
@@ -240,7 +252,7 @@ export const useAresStore = create<AresState>()(
           stazionamentoLat: partial.stazionamentoLat ?? null,
           stazionamentoLng: partial.stazionamentoLng ?? null,
           equipaggio: partial.equipaggio ?? equipaggioVuoto(),
-          stato: 'DISPONIBILE',
+          stato: st,
         }
         set((s) => ({ mezzi: [...s.mezzi, mezzo] }))
         return id
