@@ -10,6 +10,7 @@ import type {
 import { LABEL_ESITO_PAZIENTE } from '../constants/valutazioneOptions'
 import { useAresStore } from '../store/aresStore'
 import { formatDataOra } from '../utils/format'
+import { nomiPmaDaImpostazioni } from '../utils/nomiPma'
 import {
   ValutazioneMSAEditor,
   ValutazioneMSBEditor,
@@ -99,6 +100,7 @@ export function PatientDetailModal({
   const pmaCompactMode = compactForPma ?? modalMode === 'pma'
   const mediciPma = impostazioni.mediciPma ?? []
   const medicoDefault = mediciPma[0] ?? ''
+  const nomiPma = useMemo(() => nomiPmaDaImpostazioni(impostazioni), [impostazioni])
 
   const evento = eventi.find((e) => e.id === paziente.eventoId)
   const trasportato = paziente.esito === 'TRASPORTATO'
@@ -252,10 +254,7 @@ export function PatientDetailModal({
                       }
                     >
                       <option value="">—</option>
-                      {(impostazioni.pma.length > 0
-                        ? impostazioni.pma
-                        : []
-                      ).map((nome) => (
+                      {nomiPma.map((nome) => (
                         <option key={nome} value={nome}>
                           {nome}
                         </option>
@@ -296,6 +295,7 @@ export function PatientDetailModal({
                     }
                   >
                     <option value="VERDE">VERDE</option>
+                    <option value="VERDE/GIALLO">VERDE/GIALLO</option>
                     <option value="GIALLO">GIALLO</option>
                     <option value="ROSSO">ROSSO</option>
                   </select>

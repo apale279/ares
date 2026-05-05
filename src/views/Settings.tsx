@@ -3,15 +3,16 @@ import { DEFAULT_IMPOSTAZIONI } from '../constants'
 import type { AppRouteKey, Mezzo, RankUtente, Utente } from '../types'
 import { testoMultirigaDaVoci, vociDaTestoMultiriga } from '../utils/textLists'
 import { MezzoFormModal } from '../components/MezzoFormModal'
+import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchichePanel'
 import { useAresStore } from '../store/aresStore'
+import { ImpostazioniPmaTab } from './ImpostazioniPmaTab'
 
 const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'diario', label: 'Diario' },
   { key: 'ricerca', label: 'Ricerca' },
   { key: 'impostazioni', label: 'Impostazioni' },
-  { key: 'pma', label: 'PMA' },
-  { key: 'pma_modulo', label: 'Modulo PMA' },
+  { key: 'pma_modulo', label: 'Vista PMA' },
   { key: 'mezzo', label: 'Vista mezzo' },
 ]
 
@@ -68,9 +69,9 @@ export function Settings() {
   const [utenteNome, setUtenteNome] = useState('')
   const [utentePassword, setUtentePassword] = useState('')
   const [utenteRankId, setUtenteRankId] = useState('')
-  const [tab, setTab] = useState<'generali' | 'mezzi' | 'valutazioni' | 'utenti'>(
-    'generali',
-  )
+  const [tab, setTab] = useState<
+    'generali' | 'mezzi' | 'valutazioni' | 'utenti' | 'pma_impostazioni'
+  >('generali')
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
@@ -119,32 +120,98 @@ export function Settings() {
         >
           UTENTI
         </button>
+        <button
+          type="button"
+          className={`ares-btn secondary${tab === 'pma_impostazioni' ? ' active' : ''}`}
+          onClick={() => setTab('pma_impostazioni')}
+        >
+          IMP. PMA
+        </button>
       </div>
 
       {tab === 'generali' && (
         <>
       <section className="ares-settings-entity-block">
-        <h1 className="ares-settings-entity-title">Evento — dettagli</h1>
+        <h1 className="ares-settings-entity-title">Evento — classificazione e contesto</h1>
         <div className="ares-settings-entity-grid">
           <ImpostazioniTextPanel
-            title="Tipo MEDICO"
-            description="Voci del menu “dettaglio evento” quando il tipo è MEDICO."
-            value={impostazioni.dettagliMedico}
-            onSave={(dettagliMedico) => setImpostazioni({ dettagliMedico })}
+            title="Classificazione soccorso"
+            description="Voci del menu a tendina sulla scheda evento."
+            value={impostazioni.classificazioniSoccorso}
+            onSave={(classificazioniSoccorso) =>
+              setImpostazioni({ classificazioniSoccorso })
+            }
           />
           <ImpostazioniTextPanel
-            title="Tipo TRAUMA"
-            description="Voci quando il tipo è TRAUMA."
-            value={impostazioni.dettagliTrauma}
-            onSave={(dettagliTrauma) => setImpostazioni({ dettagliTrauma })}
+            title="Motivo"
+            description="Voci del menu «Motivo» sull’evento."
+            value={impostazioni.motiviSoccorso}
+            onSave={(motiviSoccorso) => setImpostazioni({ motiviSoccorso })}
           />
           <ImpostazioniTextPanel
-            title="Tipo NON NOTO"
-            description="Voci quando il tipo è NON NOTO."
-            value={impostazioni.dettagliNonNoto}
-            onSave={(dettagliNonNoto) => setImpostazioni({ dettagliNonNoto })}
+            title="Meteo"
+            description="Condizioni meteo (menu a tendina)."
+            value={impostazioni.meteoEvento}
+            onSave={(meteoEvento) => setImpostazioni({ meteoEvento })}
+          />
+          <ImpostazioniTextPanel
+            title="Luogo (tipo)"
+            description="Contesto del luogo dell’intervento."
+            value={impostazioni.luoghiEvento}
+            onSave={(luoghiEvento) => setImpostazioni({ luoghiEvento })}
+          />
+          <ImpostazioniTextPanel
+            title="Segnalato da"
+            description="Chi ha segnalato l’evento (menu a tendina)."
+            value={impostazioni.segnalatoDaOpzioni}
+            onSave={(segnalatoDaOpzioni) => setImpostazioni({ segnalatoDaOpzioni })}
+          />
+          <ImpostazioniTextPanel
+            title="Esito missione"
+            description="Voci per la scheda missione (menu a tendina)."
+            value={impostazioni.esitiMissione}
+            onSave={(esitiMissione) => setImpostazioni({ esitiMissione })}
           />
         </div>
+        <details className="ares-mission-collapsible">
+          <summary>Dettaglio classificazione (per ogni classificazione soccorso)</summary>
+          <ImpostazioniGerarchichePanel
+            title=""
+            showHeading={false}
+            description="Le righe seguono l’elenco «Classificazione soccorso». Salva dopo aver modificato."
+            genitori={impostazioni.classificazioniSoccorso}
+            gerarchia={impostazioni.dettaglioClassificazioneSoccorso}
+            onSave={(dettaglioClassificazioneSoccorso) =>
+              setImpostazioni({ dettaglioClassificazioneSoccorso })
+            }
+          />
+        </details>
+        <details className="ares-mission-collapsible">
+          <summary>Dettaglio motivo</summary>
+          <ImpostazioniGerarchichePanel
+            title=""
+            showHeading={false}
+            description="Una textarea per ogni valore del menu «Motivo»."
+            genitori={impostazioni.motiviSoccorso}
+            gerarchia={impostazioni.dettaglioMotivoSoccorso}
+            onSave={(dettaglioMotivoSoccorso) =>
+              setImpostazioni({ dettaglioMotivoSoccorso })
+            }
+          />
+        </details>
+        <details className="ares-mission-collapsible">
+          <summary>Dettaglio luogo</summary>
+          <ImpostazioniGerarchichePanel
+            title=""
+            showHeading={false}
+            description="Per ogni tipo di «Luogo», elenco dettagli possibili (uno per riga)."
+            genitori={impostazioni.luoghiEvento}
+            gerarchia={impostazioni.dettaglioLuogoEvento}
+            onSave={(dettaglioLuogoEvento) =>
+              setImpostazioni({ dettaglioLuogoEvento })
+            }
+          />
+        </details>
       </section>
         </>
       )}
@@ -168,7 +235,8 @@ export function Settings() {
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Paziente — ospedali e PMA</h1>
         <p className="ares-muted">
-          Ospedali per destinazione PS; PMA per postazione e vista PMA.
+          Ospedali per destinazione PS. Le postazioni PMA (nome, indirizzo, staff,
+          inventario) si gestiscono nella tab <strong>IMP. PMA</strong>.
         </p>
         <div className="ares-settings-entity-grid">
           <ImpostazioniTextPanel
@@ -176,12 +244,6 @@ export function Settings() {
             description="Lista per la scheda paziente (destinazione ospedaliera)."
             value={impostazioni.ospedali}
             onSave={(ospedali) => setImpostazioni({ ospedali })}
-          />
-          <ImpostazioniTextPanel
-            title="PMA (postazioni)"
-            description="Elenco PMA: menu destinazione paziente e vista PMA in alto."
-            value={impostazioni.pma}
-            onSave={(pma) => setImpostazioni({ pma })}
           />
           <ImpostazioniTextPanel
             title="Medici PMA"
@@ -521,20 +583,32 @@ export function Settings() {
             )
               return
             setImpostazioni({
-              dettagliMedico: DEFAULT_IMPOSTAZIONI.dettagliMedico,
-              dettagliTrauma: DEFAULT_IMPOSTAZIONI.dettagliTrauma,
-              dettagliNonNoto: DEFAULT_IMPOSTAZIONI.dettagliNonNoto,
               manovreMSB: DEFAULT_IMPOSTAZIONI.manovreMSB,
               manovreMSA: DEFAULT_IMPOSTAZIONI.manovreMSA,
               manovrePMA: DEFAULT_IMPOSTAZIONI.manovrePMA,
               presetDimissione: DEFAULT_IMPOSTAZIONI.presetDimissione,
               mediciPma: DEFAULT_IMPOSTAZIONI.mediciPma,
+              classificazioniSoccorso:
+                DEFAULT_IMPOSTAZIONI.classificazioniSoccorso,
+              dettaglioClassificazioneSoccorso:
+                DEFAULT_IMPOSTAZIONI.dettaglioClassificazioneSoccorso,
+              motiviSoccorso: DEFAULT_IMPOSTAZIONI.motiviSoccorso,
+              dettaglioMotivoSoccorso:
+                DEFAULT_IMPOSTAZIONI.dettaglioMotivoSoccorso,
+              meteoEvento: DEFAULT_IMPOSTAZIONI.meteoEvento,
+              luoghiEvento: DEFAULT_IMPOSTAZIONI.luoghiEvento,
+              dettaglioLuogoEvento:
+                DEFAULT_IMPOSTAZIONI.dettaglioLuogoEvento,
+              segnalatoDaOpzioni: DEFAULT_IMPOSTAZIONI.segnalatoDaOpzioni,
+              esitiMissione: DEFAULT_IMPOSTAZIONI.esitiMissione,
             })
           }}
         >
           Ripristina elenchi clinici predefiniti
         </button>
       </div>
+
+      {tab === 'pma_impostazioni' && <ImpostazioniPmaTab />}
 
       <MezzoFormModal
         open={mezzoModalOpen}

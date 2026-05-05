@@ -714,6 +714,28 @@ textarea {
   font-size: 0.8rem;
 }
 
+.ares-mission-collapsible {
+  margin: 12px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--ares-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ares-surface) 92%, transparent);
+}
+
+.ares-mission-collapsible summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.ares-mission-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.ares-mission-collapsible[open] summary {
+  margin-bottom: 10px;
+}
+
 .ares-patient-block {
   margin-bottom: 12px;
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAresStore } from '../store/aresStore'
+import { nomiPmaDaImpostazioni } from '../utils/nomiPma'
 import { formatDataOra } from '../utils/format'
 import { PatientDetailModal } from '../components/PatientDetailModal'
 
@@ -11,7 +12,7 @@ export function PmaVista() {
   const [showDimessi, setShowDimessi] = useState(false)
   const [selectedPazienteId, setSelectedPazienteId] = useState<string | null>(null)
 
-  const listaPma = impostazioni.pma.length > 0 ? impostazioni.pma : []
+  const listaPma = useMemo(() => nomiPmaDaImpostazioni(impostazioni), [impostazioni])
   const codiceClass = (codice: string): string => {
     if (codice === 'VERDE/GIALLO') return 'ares-codice-giallo'
     return `ares-codice-${codice.toLowerCase()}`
@@ -39,7 +40,7 @@ export function PmaVista() {
 
   return (
     <div className="ares-settings ares-pma-page">
-      <h1>PMA</h1>
+      <h1>Vista PMA</h1>
       <p className="ares-muted">
         Seleziona una postazione PMA. Compaiono i pazienti in destinazione PMA
         dopo l’arrivo in H (non ancora chiusi con esito valutazione PMA).
@@ -70,7 +71,7 @@ export function PmaVista() {
       </label>
       {!listaPma.length && (
         <p className="ares-muted">
-          Nessun PMA in elenco. Aggiungine in Impostazioni (sezione destinazioni).
+          Nessun PMA in elenco. Aggiungine in Impostazioni nella tab Impostazioni PMA.
         </p>
       )}
       {pmaSel && (

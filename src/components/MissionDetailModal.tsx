@@ -44,6 +44,8 @@ export function MissionDetailModal({
   const terminaMissione = useAresStore((s) => s.terminaMissione)
   const avanzaMissione = useAresStore((s) => s.avanzaMissione)
   const updateMissioneStato = useAresStore((s) => s.updateMissioneStato)
+  const updateMissione = useAresStore((s) => s.updateMissione)
+  const impostazioni = useAresStore((s) => s.impostazioni)
   const addTrattaMissione = useAresStore((s) => s.addTrattaMissione)
   const updateTrattaMissione = useAresStore((s) => s.updateTrattaMissione)
   const deleteTrattaMissione = useAresStore((s) => s.deleteTrattaMissione)
@@ -132,41 +134,102 @@ export function MissionDetailModal({
           <p>
             Stato attuale: <strong>{LABEL_STATO_MISSIONE[missione.stato]}</strong>
           </p>
-          <h3>Stati missione</h3>
-          <ul className="ares-list-compact">
-            {MISSION_STATE_ORDER.map((stato) => {
-              const ts = statoTimestamp.get(stato)
-              const idx = MISSION_STATE_ORDER.indexOf(stato)
-              const canSet = idx > currentStateIndex
-              return (
-                <li key={stato} className="ares-inline">
-                  <strong>{LABEL_STATO_MISSIONE[stato]}</strong>
-                  <span className="ares-muted">
-                    {ts ? ` — ${formatDataOra(ts)}` : ' — non impostato'}
-                  </span>
-                  {canSet && (
-                    <button
-                      type="button"
-                      className="ares-btn small secondary"
-                      onClick={() => updateMissioneStato(missione.id, stato)}
-                    >
-                      Imposta
-                    </button>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
 
-          <h3>Equipaggio (alla creazione missione)</h3>
-          <table className="ares-table ares-table-compact">
-            <tbody>
-              <RowEq label="Autista" p={eq.autista} />
-              <RowEq label="Capo equipaggio / medico" p={eq.capoEquipaggio} />
-              <RowEq label="Soccorritore 1" p={eq.soccorritore1} />
-              <RowEq label="Soccorritore 2" p={eq.soccorritore2} />
-            </tbody>
-          </table>
+          <label className="full">
+            Esito missione
+            <select
+              value={missione.esitoMissione}
+              onChange={(e) =>
+                updateMissione(missione.id, { esitoMissione: e.target.value })
+              }
+            >
+              <option value="">—</option>
+              {impostazioni.esitiMissione.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="full">
+            Note missione
+            <textarea
+              rows={4}
+              value={missione.noteMissione}
+              onChange={(e) =>
+                updateMissione(missione.id, { noteMissione: e.target.value })
+              }
+            />
+          </label>
+
+          <details className="ares-mission-collapsible">
+            <summary>Stato missione e avanzamento</summary>
+            <h3>Stati missione</h3>
+            <ul className="ares-list-compact">
+              {MISSION_STATE_ORDER.map((stato) => {
+                const ts = statoTimestamp.get(stato)
+                const idx = MISSION_STATE_ORDER.indexOf(stato)
+                const canSet = idx > currentStateIndex
+                return (
+                  <li key={stato} className="ares-inline">
+                    <strong>{LABEL_STATO_MISSIONE[stato]}</strong>
+                    <span className="ares-muted">
+                      {ts ? ` — ${formatDataOra(ts)}` : ' — non impostato'}
+                    </span>
+                    {canSet && (
+                      <button
+                        type="button"
+                        className="ares-btn small secondary"
+                        onClick={() => updateMissioneStato(missione.id, stato)}
+                      >
+                        Imposta
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="ares-inline ares-modal-actions" style={{ marginTop: 8 }}>
+              {missione.stato !== 'FINE_MISSIONE' && (
+                <>
+                  <button
+                    type="button"
+                    className="ares-btn secondary"
+                    onClick={() => avanzaMissione(missione.id)}
+                    disabled={!canAdvance}
+                  >
+                    {canAdvance ? LABEL_STATO_MISSIONE[nextState] : 'Completata'}
+                  </button>
+                  <button
+                    type="button"
+                    className="ares-btn warning"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          'Terminare la missione? Il mezzo verrà liberato.',
+                        )
+                      )
+                        terminaMissione(missione.id)
+                    }}
+                  >
+                    Termina missione
+                  </button>
+                </>
+              )}
+            </div>
+          </details>
+
+          <details className="ares-mission-collapsible">
+            <summary>Equipaggio (alla creazione missione)</summary>
+            <table className="ares-table ares-table-compact">
+              <tbody>
+                <RowEq label="Autista" p={eq.autista} />
+                <RowEq label="Capo equipaggio / medico" p={eq.capoEquipaggio} />
+                <RowEq label="Soccorritore 1" p={eq.soccorritore1} />
+                <RowEq label="Soccorritore 2" p={eq.soccorritore2} />
+              </tbody>
+            </table>
+          </details>
 
           <h3>Tempi degli stati e tratte</h3>
           <ol className="ares-timeline">
@@ -274,34 +337,6 @@ export function MissionDetailModal({
             ))}
           </ul>
 
-          <div className="ares-inline ares-modal-actions">
-            {missione.stato !== 'FINE_MISSIONE' && (
-              <>
-                <button
-                  type="button"
-                  className="ares-btn secondary"
-                  onClick={() => avanzaMissione(missione.id)}
-                  disabled={!canAdvance}
-                >
-                  {canAdvance ? LABEL_STATO_MISSIONE[nextState] : 'Completata'}
-                </button>
-                <button
-                  type="button"
-                  className="ares-btn warning"
-                  onClick={() => {
-                    if (
-                      confirm(
-                        'Terminare la missione? Il mezzo verrà liberato.',
-                      )
-                    )
-                      terminaMissione(missione.id)
-                  }}
-                >
-                  Termina missione
-                </button>
-              </>
-            )}
-          </div>
         </div>
       </div>
     </div>

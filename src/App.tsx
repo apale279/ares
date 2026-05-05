@@ -7,7 +7,6 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { Dashboard } from './views/Dashboard'
-import { PmaVista } from './views/PmaVista'
 import { PmaModulo } from './views/PmaModulo'
 import { Settings } from './views/Settings'
 import { Ricerca } from './views/Ricerca'
@@ -32,8 +31,7 @@ const ROUTES: { key: AppRouteKey; label: string; to: string }[] = [
   { key: 'diario', label: 'Diario', to: '/diario' },
   { key: 'ricerca', label: 'Ricerca', to: '/ricerca' },
   { key: 'impostazioni', label: 'Impostazioni', to: '/impostazioni' },
-  { key: 'pma', label: 'PMA', to: '/PMA' },
-  { key: 'pma_modulo', label: 'Modulo PMA', to: '/pma-modulo' },
+  { key: 'pma_modulo', label: 'Vista PMA', to: '/pma' },
   { key: 'mezzo', label: 'Vista mezzo', to: '/mezzo' },
 ]
 
@@ -101,8 +99,9 @@ export default function App() {
           <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
           <Route path="/dashboard" element={canRoute('dashboard') ? <Dashboard /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/impostazioni" element={canRoute('impostazioni') ? <Settings /> : <Navigate to={firstAllowedPath} replace />} />
-          <Route path="/PMA" element={canRoute('pma') ? <PmaVista /> : <Navigate to={firstAllowedPath} replace />} />
-          <Route path="/pma-modulo" element={canRoute('pma_modulo') ? <PmaModulo /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/pma" element={canRoute('pma_modulo') ? <PmaModulo /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route path="/PMA" element={<Navigate to="/pma" replace />} />
+          <Route path="/pma-modulo" element={<Navigate to="/pma" replace />} />
           <Route path="/mezzo" element={canRoute('mezzo') ? <MezzoVista /> : <Navigate to={firstAllowedPath} replace />} />
           <Route path="/diario" element={canRoute('diario') ? <Diario /> : <Navigate to={firstAllowedPath} replace />} />
           <Route

@@ -4,11 +4,8 @@ export type AppRouteKey =
   | 'diario'
   | 'ricerca'
   | 'impostazioni'
-  | 'pma'
   | 'pma_modulo'
   | 'mezzo'
-
-export type TipoEvento = 'MEDICO' | 'TRAUMA' | 'NON_NOTO'
 
 /** IN_ATTESA / APERTO sono calcolati in base alle missioni; CHIUSO è esplicito */
 export type StatoEvento = 'IN_ATTESA' | 'APERTO' | 'CHIUSO'
@@ -59,6 +56,22 @@ export interface Mezzo {
   stato: StatoMezzo
 }
 
+/** Voci secondarie per ogni valore del menu principale (chiave = testo esatto del genitore) */
+export type VociPerGenitore = Record<string, string[]>
+
+export interface PMAPostazione {
+  id: string
+  nome: string
+  indirizzo: string
+  lat: number | null
+  lng: number | null
+  postiLetto: number | null
+  medici: PersonaContatto[]
+  infermieri: PersonaContatto[]
+  soccorritori: PersonaContatto[]
+  inventarioFarmaci: string
+}
+
 export interface Evento {
   id: string
   createdAt: string
@@ -67,12 +80,17 @@ export interface Evento {
   indirizzo: string
   lat: number | null
   lng: number | null
-  tipoEvento: TipoEvento
-  dettaglioEvento: string
   descrizione: string
   codice: CodiceEvento
   segnalatoDa: string
   eventoInAttesa: boolean
+  classificazioneSoccorso: string
+  dettaglioClassificazioneSoccorso: string
+  motivoSoccorso: string
+  dettaglioMotivoSoccorso: string
+  meteo: string
+  luogoTipo: string
+  dettaglioLuogo: string
   /** CHIUSO è manuale; IN_ATTESA/APERTO vengono aggiornati dallo store */
   stato: StatoEvento
 }
@@ -101,6 +119,8 @@ export interface Missione {
   codice: CodiceEvento
   mezzoId: string
   equipaggio: Equipaggio
+  esitoMissione: string
+  noteMissione: string
   stato: StatoMissione
   statoHistory: MissionStateLog[]
   tratte: TrattaMissione[]
@@ -236,13 +256,21 @@ export interface ValutazionePMA {
 export type Valutazione = ValutazioneMSB | ValutazioneMSA | ValutazionePMA
 
 export interface Impostazioni {
-  dettagliMedico: string[]
-  dettagliTrauma: string[]
-  dettagliNonNoto: string[]
   tipiMezzo: string[]
   ospedali: string[]
-  /** Postazioni PMA (menu destinazione e vista PMA) */
+  /** Nomi PMA (sincronizzati con postazioniPma; retrocompatibilità) */
   pma: string[]
+  /** Anagrafica estesa PMA */
+  postazioniPma: PMAPostazione[]
+  classificazioniSoccorso: string[]
+  dettaglioClassificazioneSoccorso: VociPerGenitore
+  motiviSoccorso: string[]
+  dettaglioMotivoSoccorso: VociPerGenitore
+  meteoEvento: string[]
+  luoghiEvento: string[]
+  dettaglioLuogoEvento: VociPerGenitore
+  segnalatoDaOpzioni: string[]
+  esitiMissione: string[]
   manovreMSB: string[]
   manovreMSA: string[]
   manovrePMA: string[]

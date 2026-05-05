@@ -20,12 +20,13 @@ import type {
   StatoMissione,
   StatoNota,
   TrattaMissione,
-  TipoEvento,
   Valutazione,
 } from '../types'
 import { copiaEquipaggio, equipaggioVuoto } from '../utils/equipaggio'
 import {
+  migrateEvento,
   migrateImpostazioni,
+  migrateMissione,
   migratePazienti,
   migrateValutazioni,
 } from './persistMigration'
@@ -34,13 +35,8 @@ import {
   nuovaValutazioneMSB,
   nuovaValutazionePMA,
 } from './valutazioneFactories'
-import {
-  nuovoIdEvento,
-  nuovoIdMezzo,
-  nuovoIdMissione,
-  nuovoIdNota,
-  nuovoIdPaziente,
-} from '../utils/ids'
+import { nuovoIdMezzo, nuovoIdNota } from '../utils/ids'
+import { formatoIdSeq, migrateIdSequencer } from '../utils/idSequenziali'
 import {
   createSupabaseJsonStorage,
   isSupabaseConfigured,
@@ -48,6 +44,32 @@ import {
 
 function nowIso(): string {
   return new Date().toISOString()
+}
+
+function patchSeqSeNecessario(
+  state: Pick<
+    AresState,
+    | 'eventi'
+    | 'missioni'
+    | 'pazienti'
+    | 'idSeqSalt'
+    | 'nextIdEvento'
+    | 'nextIdMissione'
+    | 'nextIdPaziente'
+  >,
+): Partial<
+  Pick<
+    AresState,
+    'idSeqSalt' | 'nextIdEvento' | 'nextIdMissione' | 'nextIdPaziente'
+  >
+> {
+  if (state.idSeqSalt && /^[A-Za-z0-9]{4}$/.test(state.idSeqSalt)) return {}
+  return migrateIdSequencer(state.eventi, state.missioni, state.pazienti, {
+    idSeqSalt: state.idSeqSalt,
+    nextIdEvento: state.nextIdEvento,
+    nextIdMissione: state.nextIdMissione,
+    nextIdPaziente: state.nextIdPaziente,
+  })
 }
 
 export interface AresState {
@@ -58,6 +80,11 @@ export interface AresState {
   pazienti: Paziente[]
   note: Nota[]
   valutazioni: Valutazione[]
+  /** Suffisso 4 caratteri condiviso per ID sequenziali E_/M_/P_ */
+  idSeqSalt: string
+  nextIdEvento: number
+  nextIdMissione: number
+  nextIdPaziente: number
   layout: LayoutPannelli
   /** Per migrazione layout a schermo intero (incrementa LAYOUT_VERSION) */
   layoutVersion: number
@@ -107,6 +134,7 @@ export interface AresState {
   /** Imposta FINE_MISSIONE e libera il mezzo (stesso effetto dell’ultimo stato). */
   terminaMissione: (missioneId: string) => void
   deleteMissione: (missioneId: string) => void
+  updateMissione: (missioneId: string, patch: Partial<Missione>) => void
 
   addPaziente: (eventoId: string) => string
   updatePaziente: (id: string, patch: Partial<Paziente>) => void
@@ -132,16 +160,6 @@ export interface AresState {
   _reconcile: () => void
 }
 
-function collectIds(state: Pick<AresState, 'eventi' | 'missioni'>): {
-  eventi: Set<string>
-  missioni: Set<string>
-} {
-  return {
-    eventi: new Set(state.eventi.map((e) => e.id)),
-    missioni: new Set(state.missioni.map((m) => m.id)),
-  }
-}
-
 export const useAresStore = create<AresState>()(
   persist(
     (set, get) => ({
@@ -152,6 +170,10 @@ export const useAresStore = create<AresState>()(
       pazienti: [],
       note: [],
       valutazioni: [],
+      idSeqSalt: '',
+      nextIdEvento: 1,
+      nextIdMissione: 1,
+      nextIdPaziente: 1,
       layout: computeDefaultLayout(
         workspaceArea().width,
         workspaceArea().height,
@@ -239,8 +261,13 @@ export const useAresStore = create<AresState>()(
         })),
 
       addEvento: (input) => {
-        const ids = collectIds(get())
-        const id = nuovoIdEvento(ids.eventi)
+        let s0 = get()
+        const seq0 = patchSeqSeNecessario(s0)
+        if (Object.keys(seq0).length) {
+          set(seq0)
+          s0 = get()
+        }
+        const id = formatoIdSeq('E', s0.idSeqSalt, s0.nextIdEvento)
         const evento: Evento = {
           id,
           createdAt: nowIso(),
@@ -250,36 +277,21 @@ export const useAresStore = create<AresState>()(
           indirizzo: input.indirizzo,
           lat: input.lat,
           lng: input.lng,
-          tipoEvento: input.tipoEvento,
-          dettaglioEvento: input.dettaglioEvento,
           descrizione: input.descrizione,
           codice: input.codice,
-          segnalatoDa: input.segnalatoDa,
+          segnalatoDa: input.segnalatoDa ?? '',
           eventoInAttesa: input.eventoInAttesa ?? false,
+          classificazioneSoccorso: input.classificazioneSoccorso ?? '',
+          dettaglioClassificazioneSoccorso: input.dettaglioClassificazioneSoccorso ?? '',
+          motivoSoccorso: input.motivoSoccorso ?? '',
+          dettaglioMotivoSoccorso: input.dettaglioMotivoSoccorso ?? '',
+          meteo: input.meteo ?? '',
+          luogoTipo: input.luogoTipo ?? '',
+          dettaglioLuogo: input.dettaglioLuogo ?? '',
         }
-        const idsPaz = new Set(get().pazienti.map((x) => x.id))
-        const pazId = nuovoIdPaziente(idsPaz)
-        const paziente: Paziente = {
-          id: pazId,
-          eventoId: id,
-          nome: '',
-          cognome: '',
-          dataNascita: '',
-          note: '',
-          esito: '',
-          tipoDestinazioneTrasporto: 'OSPEDALE',
-          ospedaleDestinazione: '',
-          pmaDestinazione: '',
-          mezzoTrasportoId: null,
-          codiceTrasporto: input.codice,
-          arrivoInOspedaleAt: null,
-          pmaArrivoAt: null,
-          trasportoCompletatoAt: null,
-          medicoDimissionePma: '',
-        }
-        set((s) => ({
-          eventi: [...s.eventi, evento],
-          pazienti: [...s.pazienti, paziente],
+        set((st) => ({
+          eventi: [...st.eventi, evento],
+          nextIdEvento: st.nextIdEvento + 1,
         }))
         get()._reconcile()
         return id
@@ -340,7 +352,7 @@ export const useAresStore = create<AresState>()(
       },
 
       addMissione: (eventoId, mezzoId, force = false) => {
-        const s = get()
+        let s = get()
         const ev = s.eventi.find((e) => e.id === eventoId)
         if (!ev) return { ok: false, reason: 'Evento non trovato' }
         if (ev.stato === 'CHIUSO') return { ok: false, reason: 'Evento chiuso' }
@@ -348,8 +360,12 @@ export const useAresStore = create<AresState>()(
         if (!mezzo) return { ok: false, reason: 'Mezzo non trovato' }
         if (mezzo.stato !== 'DISPONIBILE' && !force)
           return { ok: false, reason: 'Mezzo non disponibile' }
-        const ids = collectIds(s)
-        const id = nuovoIdMissione(ids.missioni)
+        let sSeq = patchSeqSeNecessario(s)
+        if (Object.keys(sSeq).length) {
+          set(sSeq)
+          s = get()
+        }
+        const id = formatoIdSeq('M', s.idSeqSalt, s.nextIdMissione)
         const ts = nowIso()
         const log: MissionStateLog = { stato: 'ALLERTARE', at: ts }
         const missione: Missione = {
@@ -359,6 +375,8 @@ export const useAresStore = create<AresState>()(
           codice: ev.codice,
           mezzoId,
           equipaggio: copiaEquipaggio(mezzo.equipaggio),
+          esitoMissione: '',
+          noteMissione: '',
           stato: 'ALLERTARE',
           statoHistory: [log],
           tratte: [],
@@ -366,6 +384,7 @@ export const useAresStore = create<AresState>()(
         }
         set({
           missioni: [...s.missioni, missione],
+          nextIdMissione: s.nextIdMissione + 1,
           mezzi: s.mezzi.map((m) =>
             m.id === mezzoId ? { ...m, stato: 'OCCUPATO' as const } : m,
           ),
@@ -502,9 +521,21 @@ export const useAresStore = create<AresState>()(
         get()._reconcile()
       },
 
+      updateMissione: (missioneId, patch) =>
+        set((s) => ({
+          missioni: s.missioni.map((m) =>
+            m.id === missioneId ? { ...m, ...patch } : m,
+          ),
+        })),
+
       addPaziente: (eventoId) => {
-        const s = get()
-        const id = nuovoIdPaziente(new Set(s.pazienti.map((x) => x.id)))
+        let s = get()
+        const seqPz = patchSeqSeNecessario(s)
+        if (Object.keys(seqPz).length) {
+          set(seqPz)
+          s = get()
+        }
+        const id = formatoIdSeq('P', s.idSeqSalt, s.nextIdPaziente)
         const p: Paziente = {
           id,
           eventoId,
@@ -523,7 +554,7 @@ export const useAresStore = create<AresState>()(
           trasportoCompletatoAt: null,
           medicoDimissionePma: '',
         }
-        set({ pazienti: [...s.pazienti, p] })
+        set({ pazienti: [...s.pazienti, p], nextIdPaziente: s.nextIdPaziente + 1 })
         return id
       },
 
@@ -648,6 +679,10 @@ export const useAresStore = create<AresState>()(
         pazienti: s.pazienti,
         note: s.note,
         valutazioni: s.valutazioni,
+        idSeqSalt: s.idSeqSalt,
+        nextIdEvento: s.nextIdEvento,
+        nextIdMissione: s.nextIdMissione,
+        nextIdPaziente: s.nextIdPaziente,
         layout: s.layout,
         layoutVersion: s.layoutVersion,
       }),
@@ -672,26 +707,41 @@ export const useAresStore = create<AresState>()(
           ...c.impostazioni,
           ...(p.impostazioni ?? {}),
         })
-        out.eventi = (out.eventi ?? []).map((e) => ({
-          ...e,
-          eventoInAttesa: e.eventoInAttesa ?? false,
-        }))
+        const mergedSeq = migrateIdSequencer(
+          out.eventi ?? [],
+          out.missioni ?? [],
+          out.pazienti ?? [],
+          {
+            idSeqSalt: (p as Partial<AresState>).idSeqSalt ?? out.idSeqSalt,
+            nextIdEvento:
+              (p as Partial<AresState>).nextIdEvento ?? out.nextIdEvento,
+            nextIdMissione:
+              (p as Partial<AresState>).nextIdMissione ?? out.nextIdMissione,
+            nextIdPaziente:
+              (p as Partial<AresState>).nextIdPaziente ?? out.nextIdPaziente,
+          },
+        )
+        Object.assign(out, mergedSeq)
+
+        out.eventi = (out.eventi ?? []).map((e) => migrateEvento(e))
         out.pazienti = migratePazienti(out.pazienti ?? [])
-        out.missioni = (out.missioni ?? []).map((m) => ({
-          ...m,
-          codice:
-            m.codice ??
-            out.eventi.find((e) => e.id === m.eventoId)?.codice ??
-            'VERDE',
-          tratte: (m.tratte ?? []).map((t) => ({
-            id: t.id,
-            timestamp: t.timestamp ?? nowIso(),
-            titolo: t.titolo ?? '',
-            destinazione: t.destinazione ?? '',
-            descrizione: t.descrizione ?? '',
-          })),
-          telegramDispatchRequestedAt: m.telegramDispatchRequestedAt ?? null,
-        }))
+        out.missioni = (out.missioni ?? []).map((m) =>
+          migrateMissione({
+            ...m,
+            codice:
+              m.codice ??
+              out.eventi.find((e) => e.id === m.eventoId)?.codice ??
+              'VERDE',
+            tratte: (m.tratte ?? []).map((t) => ({
+              id: t.id,
+              timestamp: t.timestamp ?? nowIso(),
+              titolo: t.titolo ?? '',
+              destinazione: t.destinazione ?? '',
+              descrizione: t.descrizione ?? '',
+            })),
+            telegramDispatchRequestedAt: m.telegramDispatchRequestedAt ?? null,
+          }),
+        )
         out.note = (out.note ?? []).map((n) => ({
           id: n.id,
           createdAt: n.createdAt ?? nowIso(),
@@ -717,12 +767,3 @@ export const useAresStore = create<AresState>()(
     },
   ),
 )
-
-export function dettagliPerTipo(
-  imp: Impostazioni,
-  tipo: TipoEvento,
-): string[] {
-  if (tipo === 'MEDICO') return imp.dettagliMedico
-  if (tipo === 'TRAUMA') return imp.dettagliTrauma
-  return imp.dettagliNonNoto
-}

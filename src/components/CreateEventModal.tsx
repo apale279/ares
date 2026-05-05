@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CodiceEvento, TipoEvento } from '../types'
-import { dettagliPerTipo, useAresStore } from '../store/aresStore'
+import type { CodiceEvento } from '../types'
+import { CODICE_EVENTO_COLOR } from '../constants'
+import { useAresStore } from '../store/aresStore'
 import { geocodeIndirizzo } from '../utils/geocode'
 import { PhotonAddressField } from './PhotonAddressField'
 
@@ -15,7 +16,6 @@ export function CreateEventModal({
 }) {
   const addEvento = useAresStore((s) => s.addEvento)
   const addMissione = useAresStore((s) => s.addMissione)
-  const updatePaziente = useAresStore((s) => s.updatePaziente)
   const mezzi = useAresStore((s) => s.mezzi)
   const impostazioni = useAresStore((s) => s.impostazioni)
 
@@ -28,20 +28,21 @@ export function CreateEventModal({
     if (initialLat != null) setLat(initialLat)
     if (initialLng != null) setLng(initialLng)
   }, [initialLat, initialLng])
-  const [tipoEvento, setTipoEvento] = useState<TipoEvento>('NON_NOTO')
-  const [dettaglioEvento, setDettaglioEvento] = useState('')
   const [descrizione, setDescrizione] = useState('')
   const [codice, setCodice] = useState<CodiceEvento>('GIALLO')
+  const [classificazioneSoccorso, setClassificazioneSoccorso] = useState('')
+  const [dettaglioClassificazioneSoccorso, setDettaglioClassificazioneSoccorso] =
+    useState('')
+  const [motivoSoccorso, setMotivoSoccorso] = useState('')
+  const [dettaglioMotivoSoccorso, setDettaglioMotivoSoccorso] = useState('')
+  const [meteo, setMeteo] = useState('')
+  const [luogoTipo, setLuogoTipo] = useState('')
+  const [dettaglioLuogo, setDettaglioLuogo] = useState('')
   const [segnalatoDa, setSegnalatoDa] = useState('')
   const [eventoInAttesa, setEventoInAttesa] = useState(false)
   const [geoBusy, setGeoBusy] = useState(false)
   const [mezzoMissione, setMezzoMissione] = useState('')
-  const [pazNome, setPazNome] = useState('')
-  const [pazCognome, setPazCognome] = useState('')
-  const [pazDataNascita, setPazDataNascita] = useState('')
-  const [pazNote, setPazNote] = useState('')
 
-  const dettagli = dettagliPerTipo(impostazioni, tipoEvento)
   const mezziDisponibili = useMemo(
     () => mezzi.filter((m) => m.stato === 'DISPONIBILE'),
     [mezzi],
@@ -53,30 +54,22 @@ export function CreateEventModal({
       indirizzo,
       lat,
       lng,
-      tipoEvento,
-      dettaglioEvento,
       descrizione,
       codice,
       segnalatoDa,
       eventoInAttesa,
+      classificazioneSoccorso,
+      dettaglioClassificazioneSoccorso,
+      motivoSoccorso,
+      dettaglioMotivoSoccorso,
+      meteo,
+      luogoTipo,
+      dettaglioLuogo,
     })
 
-    // addEvento crea sempre un primo paziente vuoto: lo compiliamo subito.
-    const autoPaziente = [...useAresStore.getState().pazienti]
-      .reverse()
-      .find((p) => p.eventoId === eventoId)
-    if (autoPaziente) {
-      updatePaziente(autoPaziente.id, {
-        nome: pazNome.trim(),
-        cognome: pazCognome.trim(),
-        dataNascita: pazDataNascita,
-        note: pazNote.trim(),
-      })
-    }
-
     if (mezzoMissione) {
-      const esitoMissione = addMissione(eventoId, mezzoMissione)
-      if (!esitoMissione.ok) alert(esitoMissione.reason)
+      const resMissione = addMissione(eventoId, mezzoMissione)
+      if (!resMissione.ok) alert(resMissione.reason)
     }
 
     onClose()
@@ -181,42 +174,134 @@ export function CreateEventModal({
               {geoBusy ? '…' : 'Cerca coordinate'}
             </button>
           </div>
-          <div>
-            <span className="ares-label">Tipo evento</span>
-            <div className="ares-seg">
-              {(['MEDICO', 'TRAUMA', 'NON_NOTO'] as TipoEvento[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={tipoEvento === t ? 'ares-seg-btn active' : 'ares-seg-btn'}
-                  onClick={() => setTipoEvento(t)}
-                >
-                  {t === 'NON_NOTO' ? 'NON NOTO' : t}
-                </button>
-              ))}
-            </div>
-          </div>
           <label>
-            Dettaglio
+            Classificazione soccorso
             <select
-              value={dettaglioEvento}
-              onChange={(e) => setDettaglioEvento(e.target.value)}
+              value={classificazioneSoccorso}
+              onChange={(e) => {
+                const v = e.target.value
+                const opts = impostazioni.dettaglioClassificazioneSoccorso[v] ?? []
+                const keep = opts.includes(dettaglioClassificazioneSoccorso)
+                setClassificazioneSoccorso(v)
+                setDettaglioClassificazioneSoccorso(keep ? dettaglioClassificazioneSoccorso : '')
+              }}
             >
               <option value="">—</option>
-              {dettagli.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              {impostazioni.classificazioniSoccorso.map((x) => (
+                <option key={x} value={x}>
+                  {x}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Descrizione
-            <textarea
-              rows={3}
-              value={descrizione}
-              onChange={(e) => setDescrizione(e.target.value)}
-            />
+            Dettaglio classificazione
+            <select
+              value={dettaglioClassificazioneSoccorso}
+              disabled={!classificazioneSoccorso}
+              onChange={(e) => setDettaglioClassificazioneSoccorso(e.target.value)}
+            >
+              <option value="">—</option>
+              {(impostazioni.dettaglioClassificazioneSoccorso[classificazioneSoccorso] ?? []).map(
+                (x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          <label>
+            Motivo
+            <select
+              value={motivoSoccorso}
+              onChange={(e) => {
+                const v = e.target.value
+                const opts = impostazioni.dettaglioMotivoSoccorso[v] ?? []
+                const keep = opts.includes(dettaglioMotivoSoccorso)
+                setMotivoSoccorso(v)
+                setDettaglioMotivoSoccorso(keep ? dettaglioMotivoSoccorso : '')
+              }}
+            >
+              <option value="">—</option>
+              {impostazioni.motiviSoccorso.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Dettaglio motivo
+            <select
+              value={dettaglioMotivoSoccorso}
+              disabled={!motivoSoccorso}
+              onChange={(e) => setDettaglioMotivoSoccorso(e.target.value)}
+            >
+              <option value="">—</option>
+              {(impostazioni.dettaglioMotivoSoccorso[motivoSoccorso] ?? []).map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Meteo
+            <select value={meteo} onChange={(e) => setMeteo(e.target.value)}>
+              <option value="">—</option>
+              {impostazioni.meteoEvento.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Luogo
+            <select
+              value={luogoTipo}
+              onChange={(e) => {
+                const v = e.target.value
+                const opts = impostazioni.dettaglioLuogoEvento[v] ?? []
+                const keep = opts.includes(dettaglioLuogo)
+                setLuogoTipo(v)
+                setDettaglioLuogo(keep ? dettaglioLuogo : '')
+              }}
+            >
+              <option value="">—</option>
+              {impostazioni.luoghiEvento.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Dettaglio luogo
+            <select
+              value={dettaglioLuogo}
+              disabled={!luogoTipo}
+              onChange={(e) => setDettaglioLuogo(e.target.value)}
+            >
+              <option value="">—</option>
+              {(impostazioni.dettaglioLuogoEvento[luogoTipo] ?? []).map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Segnalato da
+            <select value={segnalatoDa} onChange={(e) => setSegnalatoDa(e.target.value)}>
+              <option value="">—</option>
+              {impostazioni.segnalatoDaOpzioni.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Codice
@@ -225,15 +310,21 @@ export function CreateEventModal({
               onChange={(e) => setCodice(e.target.value as CodiceEvento)}
             >
               <option value="VERDE">VERDE</option>
+              <option value="VERDE/GIALLO">VERDE/GIALLO</option>
               <option value="GIALLO">GIALLO</option>
               <option value="ROSSO">ROSSO</option>
             </select>
           </label>
+          <div
+            className="ares-codice-bar"
+            style={{ background: CODICE_EVENTO_COLOR[codice] }}
+          />
           <label>
-            Segnalato da
-            <input
-              value={segnalatoDa}
-              onChange={(e) => setSegnalatoDa(e.target.value)}
+            Descrizione
+            <textarea
+              rows={3}
+              value={descrizione}
+              onChange={(e) => setDescrizione(e.target.value)}
             />
           </label>
           <label className="ares-check">
@@ -259,41 +350,6 @@ export function CreateEventModal({
                   </option>
                 ))}
               </select>
-            </label>
-          </section>
-          <section className="ares-section">
-            <h3 className="ares-section-title">Primo paziente (facoltativo)</h3>
-            <div className="ares-form-grid tight">
-              <label>
-                Nome
-                <input
-                  value={pazNome}
-                  onChange={(e) => setPazNome(e.target.value)}
-                />
-              </label>
-              <label>
-                Cognome
-                <input
-                  value={pazCognome}
-                  onChange={(e) => setPazCognome(e.target.value)}
-                />
-              </label>
-              <label>
-                Data nascita
-                <input
-                  type="date"
-                  value={pazDataNascita}
-                  onChange={(e) => setPazDataNascita(e.target.value)}
-                />
-              </label>
-            </div>
-            <label>
-              Note paziente
-              <textarea
-                rows={2}
-                value={pazNote}
-                onChange={(e) => setPazNote(e.target.value)}
-              />
             </label>
           </section>
           <div className="ares-modal-actions">

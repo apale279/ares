@@ -80,13 +80,17 @@ export function MezzoVista() {
               <strong>Codice:</strong> {active.evento.codice}
             </p>
             <p>
-              <strong>Tipo:</strong>{' '}
-              {active.evento.tipoEvento === 'NON_NOTO'
-                ? 'NON NOTO'
-                : active.evento.tipoEvento}
+              <strong>Classificazione:</strong>{' '}
+              {active.evento.classificazioneSoccorso || '—'}
+              {active.evento.dettaglioClassificazioneSoccorso
+                ? ` · ${active.evento.dettaglioClassificazioneSoccorso}`
+                : ''}
             </p>
             <p>
-              <strong>Dettaglio:</strong> {active.evento.dettaglioEvento || '—'}
+              <strong>Motivo:</strong> {active.evento.motivoSoccorso || '—'}
+              {active.evento.dettaglioMotivoSoccorso
+                ? ` · ${active.evento.dettaglioMotivoSoccorso}`
+                : ''}
             </p>
             <p>
               <strong>Indirizzo:</strong> {active.evento.indirizzo || '—'}

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import type { CodiceEvento, TipoEvento } from '../types'
+import type { CodiceEvento } from '../types'
 import {
   CODICE_EVENTO_COLOR,
   LABEL_STATO_MISSIONE,
   prossimoStatoMissione,
 } from '../constants'
-import { dettagliPerTipo, useAresStore } from '../store/aresStore'
+import { useAresStore } from '../store/aresStore'
 import { formatDataOra } from '../utils/format'
 import { geocodeIndirizzo } from '../utils/geocode'
 import { distanzaKm } from '../utils/geoDistance'
@@ -76,8 +76,6 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
   }, [mezzi, eventi, eventoId])
 
   if (!eventoId || !evento) return null
-
-  const dettagli = dettagliPerTipo(impostazioni, evento.tipoEvento)
 
   const cercaCoordinateOra = async () => {
     const addr = evento.indirizzo.trim()
@@ -240,52 +238,174 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
           <section className="ares-section">
             <h3 className="ares-section-title">Info evento</h3>
             <div className="ares-stack-fields">
-              <div>
-                <span className="ares-label">Tipo evento</span>
-                <div className="ares-seg">
-                  {(['MEDICO', 'TRAUMA', 'NON_NOTO'] as TipoEvento[]).map(
-                    (t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        className={
-                          evento.tipoEvento === t
-                            ? 'ares-seg-btn active'
-                            : 'ares-seg-btn'
-                        }
-                        onClick={() => updateEvento(evento.id, { tipoEvento: t })}
-                      >
-                        {t === 'NON_NOTO' ? 'NON NOTO' : t}
-                      </button>
-                    ),
-                  )}
-                </div>
-              </div>
               <label>
-                Dettaglio evento
+                Classificazione soccorso
                 <select
-                  value={evento.dettaglioEvento}
-                  onChange={(e) =>
-                    updateEvento(evento.id, { dettaglioEvento: e.target.value })
-                  }
+                  value={evento.classificazioneSoccorso}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    const opts =
+                      impostazioni.dettaglioClassificazioneSoccorso[v] ?? []
+                    const keep = opts.includes(
+                      evento.dettaglioClassificazioneSoccorso,
+                    )
+                    updateEvento(evento.id, {
+                      classificazioneSoccorso: v,
+                      dettaglioClassificazioneSoccorso: keep
+                        ? evento.dettaglioClassificazioneSoccorso
+                        : '',
+                    })
+                  }}
                 >
                   <option value="">—</option>
-                  {dettagli.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
+                  {impostazioni.classificazioniSoccorso.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Descrizione
-                <textarea
-                  rows={3}
-                  value={evento.descrizione}
+                Dettaglio classificazione
+                <select
+                  value={evento.dettaglioClassificazioneSoccorso}
+                  disabled={!evento.classificazioneSoccorso}
                   onChange={(e) =>
-                    updateEvento(evento.id, { descrizione: e.target.value })
+                    updateEvento(evento.id, {
+                      dettaglioClassificazioneSoccorso: e.target.value,
+                    })
                   }
-                />
+                >
+                  <option value="">—</option>
+                  {(
+                    impostazioni.dettaglioClassificazioneSoccorso[
+                      evento.classificazioneSoccorso
+                    ] ?? []
+                  ).map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Motivo
+                <select
+                  value={evento.motivoSoccorso}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    const opts = impostazioni.dettaglioMotivoSoccorso[v] ?? []
+                    const keep = opts.includes(evento.dettaglioMotivoSoccorso)
+                    updateEvento(evento.id, {
+                      motivoSoccorso: v,
+                      dettaglioMotivoSoccorso: keep
+                        ? evento.dettaglioMotivoSoccorso
+                        : '',
+                    })
+                  }}
+                >
+                  <option value="">—</option>
+                  {impostazioni.motiviSoccorso.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Dettaglio motivo
+                <select
+                  value={evento.dettaglioMotivoSoccorso}
+                  disabled={!evento.motivoSoccorso}
+                  onChange={(e) =>
+                    updateEvento(evento.id, {
+                      dettaglioMotivoSoccorso: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">—</option>
+                  {(
+                    impostazioni.dettaglioMotivoSoccorso[evento.motivoSoccorso] ??
+                    []
+                  ).map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Meteo
+                <select
+                  value={evento.meteo}
+                  onChange={(e) =>
+                    updateEvento(evento.id, { meteo: e.target.value })
+                  }
+                >
+                  <option value="">—</option>
+                  {impostazioni.meteoEvento.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Luogo
+                <select
+                  value={evento.luogoTipo}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    const opts = impostazioni.dettaglioLuogoEvento[v] ?? []
+                    const keep = opts.includes(evento.dettaglioLuogo)
+                    updateEvento(evento.id, {
+                      luogoTipo: v,
+                      dettaglioLuogo: keep ? evento.dettaglioLuogo : '',
+                    })
+                  }}
+                >
+                  <option value="">—</option>
+                  {impostazioni.luoghiEvento.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Dettaglio luogo
+                <select
+                  value={evento.dettaglioLuogo}
+                  disabled={!evento.luogoTipo}
+                  onChange={(e) =>
+                    updateEvento(evento.id, { dettaglioLuogo: e.target.value })
+                  }
+                >
+                  <option value="">—</option>
+                  {(
+                    impostazioni.dettaglioLuogoEvento[evento.luogoTipo] ?? []
+                  ).map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Segnalato da
+                <select
+                  value={evento.segnalatoDa}
+                  onChange={(e) =>
+                    updateEvento(evento.id, { segnalatoDa: e.target.value })
+                  }
+                >
+                  <option value="">—</option>
+                  {impostazioni.segnalatoDaOpzioni.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 Codice evento
@@ -311,11 +431,12 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                 }}
               />
               <label>
-                Segnalato da
-                <input
-                  value={evento.segnalatoDa}
+                Descrizione
+                <textarea
+                  rows={3}
+                  value={evento.descrizione}
                   onChange={(e) =>
-                    updateEvento(evento.id, { segnalatoDa: e.target.value })
+                    updateEvento(evento.id, { descrizione: e.target.value })
                   }
                 />
               </label>
@@ -513,12 +634,18 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                     indirizzo: evento.indirizzo,
                     lat: evento.lat,
                     lng: evento.lng,
-                    tipoEvento: evento.tipoEvento,
-                    dettaglioEvento: evento.dettaglioEvento,
                     descrizione: `Evento figlio di ${evento.id}`,
                     codice: evento.codice,
                     segnalatoDa: evento.segnalatoDa,
                     eventoInAttesa: false,
+                    classificazioneSoccorso: evento.classificazioneSoccorso,
+                    dettaglioClassificazioneSoccorso:
+                      evento.dettaglioClassificazioneSoccorso,
+                    motivoSoccorso: evento.motivoSoccorso,
+                    dettaglioMotivoSoccorso: evento.dettaglioMotivoSoccorso,
+                    meteo: evento.meteo,
+                    luogoTipo: evento.luogoTipo,
+                    dettaglioLuogo: evento.dettaglioLuogo,
                   })
                   openModalEvento(childId)
                 }}

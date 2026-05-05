@@ -1,6 +1,103 @@
 import { DEFAULT_IMPOSTAZIONI } from '../constants'
-import type { Impostazioni, Paziente, Valutazione } from '../types'
+import type {
+  AppRouteKey,
+  Evento,
+  Impostazioni,
+  Missione,
+  Paziente,
+  PMAPostazione,
+  PersonaContatto,
+  RankUtente,
+  Valutazione,
+  VociPerGenitore,
+} from '../types'
+
+const APP_ROUTE_KEYS: AppRouteKey[] = [
+  'dashboard',
+  'diario',
+  'ricerca',
+  'impostazioni',
+  'pma_modulo',
+  'mezzo',
+]
+
+function asAppRouteKeys(keys: unknown[]): AppRouteKey[] {
+  const allowed = new Set<string>(APP_ROUTE_KEYS)
+  const out: AppRouteKey[] = []
+  const seen = new Set<string>()
+  for (const k of keys) {
+    let s = String(k ?? '').trim()
+    if (s === 'pma') s = 'pma_modulo'
+    if (!allowed.has(s) || seen.has(s)) continue
+    seen.add(s)
+    out.push(s as AppRouteKey)
+  }
+  return out
+}
 import { nuovaValutazioneMSB } from './valutazioneFactories'
+
+function asPersona(raw: unknown): PersonaContatto {
+  if (!raw || typeof raw !== 'object') return { nome: '', cognome: '', telefono: '' }
+  const o = raw as Record<string, unknown>
+  return {
+    nome: String(o.nome ?? '').trim(),
+    cognome: String(o.cognome ?? '').trim(),
+    telefono: String(o.telefono ?? '').trim(),
+  }
+}
+
+function asPMAPostazione(value: unknown, fallbackNome: string): PMAPostazione {
+  if (!value || typeof value !== 'object') {
+    return {
+      id: `pma_${crypto.randomUUID()}`,
+      nome: fallbackNome,
+      indirizzo: '',
+      lat: null,
+      lng: null,
+      postiLetto: null,
+      medici: [],
+      infermieri: [],
+      soccorritori: [],
+      inventarioFarmaci: '',
+    }
+  }
+  const o = value as Record<string, unknown>
+  const postiRaw = o.postiLetto
+  let postiLetto: number | null = null
+  if (typeof postiRaw === 'number' && Number.isFinite(postiRaw)) postiLetto = postiRaw
+  else if (typeof postiRaw === 'string' && postiRaw.trim()) {
+    const n = Number.parseInt(postiRaw, 10)
+    if (Number.isFinite(n)) postiLetto = n
+  }
+
+  return {
+    id: String(o.id ?? `pma_${crypto.randomUUID()}`).trim() || `pma_${crypto.randomUUID()}`,
+    nome: String(o.nome ?? fallbackNome).trim() || fallbackNome,
+    indirizzo: String(o.indirizzo ?? '').trim(),
+    lat: typeof o.lat === 'number' && Number.isFinite(o.lat) ? o.lat : null,
+    lng: typeof o.lng === 'number' && Number.isFinite(o.lng) ? o.lng : null,
+    postiLetto,
+    medici: Array.isArray(o.medici) ? o.medici.map((x) => asPersona(x)) : [],
+    infermieri: Array.isArray(o.infermieri) ? o.infermieri.map((x) => asPersona(x)) : [],
+    soccorritori: Array.isArray(o.soccorritori)
+      ? o.soccorritori.map((x) => asPersona(x))
+      : [],
+    inventarioFarmaci: String(o.inventarioFarmaci ?? '').trim(),
+  }
+}
+
+function asVociPerGenitore(raw: unknown, fallback: VociPerGenitore): VociPerGenitore {
+  if (!raw || typeof raw !== 'object') return fallback
+  const src = raw as Record<string, unknown>
+  const out: VociPerGenitore = { ...fallback }
+  for (const [k, v] of Object.entries(src)) {
+    const key = k.trim()
+    if (!key) continue
+    if (!Array.isArray(v)) continue
+    out[key] = v.map((x) => String(x ?? '').trim()).filter(Boolean)
+  }
+  return out
+}
 
 function asStringArray(value: unknown, fallback: string[]): string[] {
   if (!Array.isArray(value)) return fallback
@@ -9,17 +106,28 @@ function asStringArray(value: unknown, fallback: string[]): string[] {
     .filter(Boolean)
 }
 
+function migratePostazioniPmaBloc(raw: Partial<Impostazioni> | undefined): PMAPostazione[] {
+  const arr = raw?.postazioniPma
+  if (Array.isArray(arr) && arr.length > 0) {
+    return arr.map((item, idx) =>
+      asPMAPostazione(item, `PMA_${idx + 1}`),
+    )
+  }
+  const legacyNames = asStringArray(raw?.pma, DEFAULT_IMPOSTAZIONI.pma)
+  return legacyNames.map((nome) => asPMAPostazione(undefined, nome))
+}
+
 export function migrateImpostazioni(
   raw: Partial<Impostazioni> | undefined,
 ): Impostazioni {
-  const rankUtente = Array.isArray(raw?.rankUtente)
+  const rankUtente: RankUtente[] = Array.isArray(raw?.rankUtente)
     ? raw.rankUtente
         .filter((r) => !!r && typeof r === 'object')
         .map((r) => ({
           id: String(r.id ?? '').trim(),
           nome: String(r.nome ?? '').trim(),
           routeKeys: Array.isArray(r.routeKeys)
-            ? r.routeKeys.filter(Boolean)
+            ? asAppRouteKeys(r.routeKeys)
             : [],
         }))
         .filter((r) => r.id && r.nome && r.routeKeys.length > 0)
@@ -37,15 +145,50 @@ export function migrateImpostazioni(
         .filter((u) => u.id && u.nomeUtente && u.rankId)
     : DEFAULT_IMPOSTAZIONI.utenti
 
+  const postazioniPma = migratePostazioniPmaBloc(raw)
+
+  const pmaSynced = [...new Set(postazioniPma.map((p) => p.nome.trim()).filter(Boolean))]
+  const pmaList =
+    pmaSynced.length > 0
+      ? pmaSynced
+      : asStringArray(raw?.pma, DEFAULT_IMPOSTAZIONI.pma)
+
+  const rawClean: Record<string, unknown> = { ...(raw as object) }
+  delete rawClean.dettagliMedico
+  delete rawClean.dettagliTrauma
+  delete rawClean.dettagliNonNoto
+
   return {
     ...DEFAULT_IMPOSTAZIONI,
-    ...raw,
-    dettagliMedico: asStringArray(raw?.dettagliMedico, DEFAULT_IMPOSTAZIONI.dettagliMedico),
-    dettagliTrauma: asStringArray(raw?.dettagliTrauma, DEFAULT_IMPOSTAZIONI.dettagliTrauma),
-    dettagliNonNoto: asStringArray(raw?.dettagliNonNoto, DEFAULT_IMPOSTAZIONI.dettagliNonNoto),
+    ...rawClean,
     tipiMezzo: asStringArray(raw?.tipiMezzo, DEFAULT_IMPOSTAZIONI.tipiMezzo),
     ospedali: asStringArray(raw?.ospedali, DEFAULT_IMPOSTAZIONI.ospedali),
-    pma: asStringArray(raw?.pma, DEFAULT_IMPOSTAZIONI.pma),
+    pma: pmaList,
+    postazioniPma: postazioniPma.length ? postazioniPma : DEFAULT_IMPOSTAZIONI.postazioniPma,
+    classificazioniSoccorso: asStringArray(
+      raw?.classificazioniSoccorso,
+      DEFAULT_IMPOSTAZIONI.classificazioniSoccorso,
+    ),
+    dettaglioClassificazioneSoccorso: asVociPerGenitore(
+      raw?.dettaglioClassificazioneSoccorso,
+      DEFAULT_IMPOSTAZIONI.dettaglioClassificazioneSoccorso,
+    ),
+    motiviSoccorso: asStringArray(raw?.motiviSoccorso, DEFAULT_IMPOSTAZIONI.motiviSoccorso),
+    dettaglioMotivoSoccorso: asVociPerGenitore(
+      raw?.dettaglioMotivoSoccorso,
+      DEFAULT_IMPOSTAZIONI.dettaglioMotivoSoccorso,
+    ),
+    meteoEvento: asStringArray(raw?.meteoEvento, DEFAULT_IMPOSTAZIONI.meteoEvento),
+    luoghiEvento: asStringArray(raw?.luoghiEvento, DEFAULT_IMPOSTAZIONI.luoghiEvento),
+    dettaglioLuogoEvento: asVociPerGenitore(
+      raw?.dettaglioLuogoEvento,
+      DEFAULT_IMPOSTAZIONI.dettaglioLuogoEvento,
+    ),
+    segnalatoDaOpzioni: asStringArray(
+      raw?.segnalatoDaOpzioni,
+      DEFAULT_IMPOSTAZIONI.segnalatoDaOpzioni,
+    ),
+    esitiMissione: asStringArray(raw?.esitiMissione, DEFAULT_IMPOSTAZIONI.esitiMissione),
     manovreMSB: asStringArray(raw?.manovreMSB, DEFAULT_IMPOSTAZIONI.manovreMSB),
     manovreMSA: asStringArray(raw?.manovreMSA, DEFAULT_IMPOSTAZIONI.manovreMSA),
     manovrePMA: asStringArray(raw?.manovrePMA, DEFAULT_IMPOSTAZIONI.manovrePMA),
@@ -53,6 +196,33 @@ export function migrateImpostazioni(
     mediciPma: asStringArray(raw?.mediciPma, DEFAULT_IMPOSTAZIONI.mediciPma),
     rankUtente,
     utenti,
+  }
+}
+
+export function migrateEvento(e: Evento): Evento {
+  const legacy = e as Evento & { tipoEvento?: unknown; dettaglioEvento?: unknown }
+  const { tipoEvento: _t, dettaglioEvento: _d, ...rest } = legacy
+  void _t
+  void _d
+  return {
+    ...rest,
+    eventoInAttesa: e.eventoInAttesa ?? false,
+    classificazioneSoccorso: e.classificazioneSoccorso ?? '',
+    dettaglioClassificazioneSoccorso: e.dettaglioClassificazioneSoccorso ?? '',
+    motivoSoccorso: e.motivoSoccorso ?? '',
+    dettaglioMotivoSoccorso: e.dettaglioMotivoSoccorso ?? '',
+    meteo: e.meteo ?? '',
+    luogoTipo: e.luogoTipo ?? '',
+    dettaglioLuogo: e.dettaglioLuogo ?? '',
+    segnalatoDa: e.segnalatoDa ?? '',
+  }
+}
+
+export function migrateMissione(m: Missione): Missione {
+  return {
+    ...m,
+    esitoMissione: m.esitoMissione ?? '',
+    noteMissione: m.noteMissione ?? '',
   }
 }
 

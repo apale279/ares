@@ -231,8 +231,16 @@ function missionMessageHtml(missione, evento, mezzoSigla) {
     mapsUrl
       ? `<b>Indirizzo:</b> <a href="${mapsUrl}">${escapeHtml(indirizzo)}</a>`
       : `<b>Indirizzo:</b> ${escapeHtml(indirizzo)}`,
-    `<b>Tipo evento:</b> ${escapeHtml(evento?.tipoEvento ?? '—')}`,
-    `<b>Dettaglio evento:</b> ${escapeHtml(evento?.dettaglioEvento ?? '—')}`,
+    `<b>Classificazione:</b> ${escapeHtml(evento?.classificazioneSoccorso ?? '—')}${
+      evento?.dettaglioClassificazioneSoccorso
+        ? ` (${escapeHtml(evento.dettaglioClassificazioneSoccorso)})`
+        : ''
+    }`,
+    `<b>Motivo:</b> ${escapeHtml(evento?.motivoSoccorso ?? '—')}${
+      evento?.dettaglioMotivoSoccorso
+        ? ` (${escapeHtml(evento.dettaglioMotivoSoccorso)})`
+        : ''
+    }`,
     `<b>Descrizione:</b> ${escapeHtml(evento?.descrizione ?? '—')}`,
   ]
   if (mezzoVistaUrl) {
