@@ -2,8 +2,13 @@ import type { Equipaggio, Mezzo, StatoMezzo } from '../types'
 import { searchPhoton } from './photon'
 
 export type MezziImportSummary = {
+  /** Righe lette dal foglio (inclusa riga 1 titoli). */
+  foglioRigheTotali: number
+  /** Righe da trattare come dati = totale − 1 (riga 1 solo titoli). */
+  righeDatiSenzaTitolo: number
   created: number
   updated: number
+  /** Righe dati vuote o senza sigla (non importate). */
   skipped: number
   warnings: string[]
 }
@@ -42,14 +47,6 @@ function buildEquipaggio(row: unknown[]): Equipaggio {
       telefono: cell(row, 16),
     },
   }
-}
-
-function isLikelyHeaderRow(row: unknown[]): boolean {
-  const b = cell(row, 1).toLowerCase()
-  const a = cell(row, 0).toLowerCase()
-  if (b === 'sigla' || b === 'sigla (univoca)') return true
-  if (a === 'tipo' && (b === '' || b.includes('sigla'))) return true
-  return false
 }
 
 /** Colonna R (indice 17): stato mezzo. Vuoto = nessun override in update / default in create. */
@@ -115,6 +112,7 @@ function pickEquipaggiSheet(
 
 /**
  * Importa righe dal foglio EQUIPAGGI (primo foglio se manca il nome).
+ * La **riga 1** del foglio è solo intestazione colonne e non viene importata.
  * Colonne A–Q come da specifica; colonna R = stato (DISPONIBILE / OCCUPATO / NON DISPONIBILE).
  * Tipo non in elenco → primo tipo in impostazioni.
  * Stazionamento col. E geocodificato (Photon/Mapbox+Nominatim). Sigla duplicata → update.
@@ -137,6 +135,8 @@ export async function importMezziFromExcelBuffer(
   const XLSX = await import('xlsx')
   const geoDelay = deps.geoDelayMs ?? 450
   const summary: MezziImportSummary = {
+    foglioRigheTotali: 0,
+    righeDatiSenzaTitolo: 0,
     created: 0,
     updated: 0,
     skipped: 0,
@@ -156,14 +156,14 @@ export async function importMezziFromExcelBuffer(
     raw: false,
   }) as unknown[][]
 
+  summary.foglioRigheTotali = rows.length
+  summary.righeDatiSenzaTitolo = Math.max(0, rows.length - 1)
+
   let geocodeCallCount = 0
-  for (let i = 0; i < rows.length; i++) {
+  /** Riga 1 (indice 0) = titoli colonne, mai importata. */
+  for (let i = 1; i < rows.length; i++) {
     const row = rows[i] as unknown[]
     if (!Array.isArray(row) || row.every((c) => String(c ?? '').trim() === '')) {
-      summary.skipped++
-      continue
-    }
-    if (isLikelyHeaderRow(row)) {
       summary.skipped++
       continue
     }

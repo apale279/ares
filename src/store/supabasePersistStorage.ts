@@ -1,6 +1,10 @@
 import { supabase } from '../lib/supabaseClient'
 
-/** Intero stato ARES (payload.state) in un’unica riga JSON: niente campi “solo locale” oltre a quanto escluso dal partialize dello store. */
+/**
+ * Intero stato ARES (`payload` in `ares_state`) in un’unica riga JSON.
+ * Con `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` lo store persistito (inclusi
+ * `mezzi`, `impostazioni`, eventi, ecc.) viene letto/scritto qui; altrimenti solo locale.
+ */
 const ROW_ID = 'default'
 const LEGACY_STORAGE_KEY = 'ares-local-storage'
 const BACKUP_STORAGE_KEY = 'ares-supabase-backup'

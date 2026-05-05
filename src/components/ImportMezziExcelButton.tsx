@@ -36,9 +36,19 @@ export function ImportMezziExcelButton({
               sum.warnings.length > 0
                 ? `\n\nAvvisi:\n${sum.warnings.slice(0, 15).join('\n')}${sum.warnings.length > 15 ? '\n…' : ''}`
                 : ''
-            window.alert(
-              `Importazione completata.\nCreati: ${sum.created}\nAggiornati (stessa sigla): ${sum.updated}\nRighe saltate (vuote/intestazione): ${sum.skipped}.${w}`,
-            )
+            const elaborati = sum.created + sum.updated + sum.skipped
+            const conteggioOk =
+              sum.righeDatiSenzaTitolo === 0 ||
+              elaborati === sum.righeDatiSenzaTitolo
+            const righeMsg = [
+              `Righe nel foglio (totale): ${sum.foglioRigheTotali}.`,
+              `Righe dati (totale − 1, esclusa riga 1 titoli): ${sum.righeDatiSenzaTitolo}.`,
+              `Creati: ${sum.created} · Aggiornati (stessa sigla): ${sum.updated} · Saltate (vuote o senza sigla): ${sum.skipped}.`,
+              conteggioOk
+                ? `Verifica conteggio: ${elaborati} = ${sum.righeDatiSenzaTitolo} righe dati elaborate.`
+                : `Attenzione: somma ${elaborati} diversa da righe dati attese (${sum.righeDatiSenzaTitolo}).`,
+            ].join('\n')
+            window.alert(`Importazione completata.\n\n${righeMsg}${w}`)
           } catch (err) {
             console.error(err)
             window.alert(

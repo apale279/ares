@@ -610,7 +610,8 @@ export function Settings() {
         <p className="ares-muted">
           Stazionamento: Photon, coordinate manuali o click sulla mappa nel form.{' '}
           <strong>Importa</strong> legge il foglio <strong>EQUIPAGGI</strong> (o il
-          primo foglio): colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
+          primo foglio): la <strong>riga 1</strong> deve essere solo i titoli colonne (non viene
+          importata). Colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
           (geocoding), F–Q=equipaggio (autista, capo, socc.1, socc.2), R=stato (DISPONIBILE,
           OCCUPATO, NON DISPONIBILE). Stessa sigla =
           sovrascrittura. L’ordine delle righe (frecce) si ripete nel pannello{' '}
