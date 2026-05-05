@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 
+/** Intero stato ARES (payload.state) in un’unica riga JSON: niente campi “solo locale” oltre a quanto escluso dal partialize dello store. */
 const ROW_ID = 'default'
 const LEGACY_STORAGE_KEY = 'ares-local-storage'
 const BACKUP_STORAGE_KEY = 'ares-supabase-backup'

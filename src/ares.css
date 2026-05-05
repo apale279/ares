@@ -1130,6 +1130,25 @@ textarea {
   margin-bottom: 8px;
 }
 
+.ares-search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ares-search-check {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.ares-search-bulk-bar {
+  margin-bottom: 16px;
+  border: 1px solid var(--ares-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--ares-danger) 8%, var(--ares-elevated));
+}
+
 .ares-search-last-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

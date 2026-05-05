@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { equipaggioToPlainText } from '../utils/equipaggioPrint'
 import type { EsitoPaziente } from '../types'
 import { useAresStore } from '../store/aresStore'
@@ -6,6 +6,13 @@ import { LABEL_STATO_MISSIONE } from '../constants'
 
 function norm(s: string): string {
   return s.toLowerCase().trim()
+}
+
+function toggleInSet(prev: Set<string>, id: string): Set<string> {
+  const n = new Set(prev)
+  if (n.has(id)) n.delete(id)
+  else n.add(id)
+  return n
 }
 
 export function Ricerca({
@@ -22,7 +29,6 @@ export function Ricerca({
   const openModalMissione = useAresStore((s) => s.openModalMissione)
   const openModalPaziente = useAresStore((s) => s.openModalPaziente)
   const openModalMezzo = useAresStore((s) => s.openModalMezzo)
-
   const apri = (fn: () => void) => {
     fn()
     onOpenDetail?.()
@@ -35,6 +41,10 @@ export function Ricerca({
   const [eq, setEq] = useState(true)
   const [didSearch, setDidSearch] = useState(false)
 
+  const [selEv, setSelEv] = useState<Set<string>>(() => new Set())
+  const [selMi, setSelMi] = useState<Set<string>>(() => new Set())
+  const [selPa, setSelPa] = useState<Set<string>>(() => new Set())
+
   const nq = norm(q)
 
   const risEventi = useMemo(() => {
@@ -46,14 +56,18 @@ export function Ricerca({
         norm(e.descrizione).includes(nq) ||
         norm(e.segnalatoDa).includes(nq),
     )
-  }, [eventi, nq, ev])
+  }, [eventi, nq, ev, didSearch])
 
   const risMissioni = useMemo(() => {
     if (!didSearch || !nq || !mi) return []
     return missioni.filter(
-      (m) => norm(m.id).includes(nq) || norm(m.eventoId).includes(nq),
+      (m) =>
+        norm(m.id).includes(nq) ||
+        norm(m.eventoId).includes(nq) ||
+        norm(m.esitoMissione ?? '').includes(nq) ||
+        norm(m.noteMissione ?? '').includes(nq),
     )
-  }, [missioni, nq, mi])
+  }, [missioni, nq, mi, didSearch])
 
   const risPazienti = useMemo(() => {
     if (!didSearch || !nq || !pa) return []
@@ -65,14 +79,14 @@ export function Ricerca({
         norm(p.note).includes(nq) ||
         norm(String(p.esito as EsitoPaziente)).includes(nq),
     )
-  }, [pazienti, nq, pa])
+  }, [pazienti, nq, pa, didSearch])
 
   const risEquip = useMemo(() => {
     if (!didSearch || !nq || !eq) return []
     return mezzi.filter((m) =>
       norm(equipaggioToPlainText(m.equipaggio)).includes(nq),
     )
-  }, [mezzi, nq, eq])
+  }, [mezzi, nq, eq, didSearch])
 
   const ultimiEventiChiusi = useMemo(
     () =>
@@ -101,20 +115,92 @@ export function Ricerca({
     [pazienti],
   )
 
+  const totalSel = selEv.size + selMi.size + selPa.size
+
+  const clearSelection = useCallback(() => {
+    setSelEv(new Set())
+    setSelMi(new Set())
+    setSelPa(new Set())
+  }, [])
+
+  const runSearch = () => {
+    clearSelection()
+    setDidSearch(true)
+  }
+
+  const eliminaSelezionati = () => {
+    if (totalSel === 0) return
+    const lines: string[] = []
+    if (selEv.size) lines.push(`• ${selEv.size} evento/i`)
+    if (selMi.size) lines.push(`• ${selMi.size} missione/i`)
+    if (selPa.size) lines.push(`• ${selPa.size} paziente/i`)
+    const msg = [
+      'Eliminare definitivamente i record selezionati?',
+      '',
+      ...lines,
+      '',
+      'Le missioni e i pazienti collegati a un evento eliminato verranno rimossi automaticamente.',
+    ].join('\n')
+    if (!window.confirm(msg)) return
+
+    const evIds = [...selEv]
+    const miIds = [...selMi]
+    const paIds = [...selPa]
+    const get = useAresStore.getState
+
+    for (const id of evIds) get().deleteEvento(id)
+    for (const id of miIds) get().deleteMissione(id)
+    for (const id of paIds) get().deletePaziente(id)
+
+    clearSelection()
+  }
+
   return (
     <div className="ares-settings">
       <h1>Ricerca</h1>
       <p className="ares-muted">
-        Filtra per testo libero. Seleziona le categorie da includere.
+        Filtra per testo libero. Seleziona le categorie da includere. Puoi selezionare più
+        elementi e cancellarli con conferma.
       </p>
+
+      {totalSel > 0 && (
+        <section className="ares-settings-entity-panel ares-search-bulk-bar">
+          <div className="ares-inline space-between">
+            <span>
+              Selezionati: <strong>{selEv.size}</strong> eventi,{' '}
+              <strong>{selMi.size}</strong> missioni, <strong>{selPa.size}</strong> pazienti
+            </span>
+            <div className="ares-inline">
+              <button type="button" className="ares-btn ghost" onClick={clearSelection}>
+                Deseleziona tutto
+              </button>
+              <button type="button" className="ares-btn danger" onClick={eliminaSelezionati}>
+                Elimina selezionati…
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="ares-settings-entity-panel">
         <h2>Ultimi 20 chiusi</h2>
+        <p className="ares-muted">
+          Puoi selezionare più righe (come nei risultati di ricerca) e usare «Elimina
+          selezionati» sopra.
+        </p>
         <div className="ares-search-last-grid">
           <div>
             <h3>Eventi</h3>
             <ul className="ares-search-list">
               {ultimiEventiChiusi.map((e) => (
-                <li key={e.id}>
+                <li key={e.id} className="ares-search-row">
+                  <label className="ares-search-check">
+                    <input
+                      type="checkbox"
+                      checked={selEv.has(e.id)}
+                      onChange={() => setSelEv((p) => toggleInSet(p, e.id))}
+                    />
+                  </label>
                   <button
                     type="button"
                     className="ares-link-mission"
@@ -130,7 +216,14 @@ export function Ricerca({
             <h3>Missioni</h3>
             <ul className="ares-search-list">
               {ultimeMissioniChiuse.map((m) => (
-                <li key={m.id}>
+                <li key={m.id} className="ares-search-row">
+                  <label className="ares-search-check">
+                    <input
+                      type="checkbox"
+                      checked={selMi.has(m.id)}
+                      onChange={() => setSelMi((p) => toggleInSet(p, m.id))}
+                    />
+                  </label>
                   <button
                     type="button"
                     className="ares-link-mission"
@@ -146,7 +239,14 @@ export function Ricerca({
             <h3>Pazienti</h3>
             <ul className="ares-search-list">
               {ultimiPazientiChiusi.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="ares-search-row">
+                  <label className="ares-search-check">
+                    <input
+                      type="checkbox"
+                      checked={selPa.has(p.id)}
+                      onChange={() => setSelPa((s) => toggleInSet(s, p.id))}
+                    />
+                  </label>
                   <button
                     type="button"
                     className="ares-link-mission"
@@ -170,11 +270,7 @@ export function Ricerca({
           />
         </label>
         <div className="ares-inline">
-          <button
-            type="button"
-            className="ares-btn primary"
-            onClick={() => setDidSearch(true)}
-          >
+          <button type="button" className="ares-btn primary" onClick={runSearch}>
             Cerca
           </button>
         </div>
@@ -198,10 +294,32 @@ export function Ricerca({
 
       {ev && risEventi.length > 0 && (
         <section className="ares-settings-entity-panel">
-          <h2>Eventi ({risEventi.length})</h2>
+          <div className="ares-inline space-between">
+            <h2>Eventi ({risEventi.length})</h2>
+            <button
+              type="button"
+              className="ares-btn small secondary"
+              onClick={() =>
+                setSelEv((p) => {
+                  const n = new Set(p)
+                  for (const e of risEventi) n.add(e.id)
+                  return n
+                })
+              }
+            >
+              Seleziona tutti (questa lista)
+            </button>
+          </div>
           <ul className="ares-search-list">
             {risEventi.map((e) => (
-              <li key={e.id}>
+              <li key={e.id} className="ares-search-row">
+                <label className="ares-search-check">
+                  <input
+                    type="checkbox"
+                    checked={selEv.has(e.id)}
+                    onChange={() => setSelEv((p) => toggleInSet(p, e.id))}
+                  />
+                </label>
                 <button
                   type="button"
                   className="ares-link-mission"
@@ -218,10 +336,32 @@ export function Ricerca({
 
       {mi && risMissioni.length > 0 && (
         <section className="ares-settings-entity-panel">
-          <h2>Missioni ({risMissioni.length})</h2>
+          <div className="ares-inline space-between">
+            <h2>Missioni ({risMissioni.length})</h2>
+            <button
+              type="button"
+              className="ares-btn small secondary"
+              onClick={() =>
+                setSelMi((p) => {
+                  const n = new Set(p)
+                  for (const m of risMissioni) n.add(m.id)
+                  return n
+                })
+              }
+            >
+              Seleziona tutti (questa lista)
+            </button>
+          </div>
           <ul className="ares-search-list">
             {risMissioni.map((m) => (
-              <li key={m.id}>
+              <li key={m.id} className="ares-search-row">
+                <label className="ares-search-check">
+                  <input
+                    type="checkbox"
+                    checked={selMi.has(m.id)}
+                    onChange={() => setSelMi((p) => toggleInSet(p, m.id))}
+                  />
+                </label>
                 <button
                   type="button"
                   className="ares-link-mission"
@@ -238,10 +378,32 @@ export function Ricerca({
 
       {pa && risPazienti.length > 0 && (
         <section className="ares-settings-entity-panel">
-          <h2>Pazienti ({risPazienti.length})</h2>
+          <div className="ares-inline space-between">
+            <h2>Pazienti ({risPazienti.length})</h2>
+            <button
+              type="button"
+              className="ares-btn small secondary"
+              onClick={() =>
+                setSelPa((p) => {
+                  const n = new Set(p)
+                  for (const x of risPazienti) n.add(x.id)
+                  return n
+                })
+              }
+            >
+              Seleziona tutti (questa lista)
+            </button>
+          </div>
           <ul className="ares-search-list">
             {risPazienti.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="ares-search-row">
+                <label className="ares-search-check">
+                  <input
+                    type="checkbox"
+                    checked={selPa.has(p.id)}
+                    onChange={() => setSelPa((s) => toggleInSet(s, p.id))}
+                  />
+                </label>
                 <button
                   type="button"
                   className="ares-link-mission"

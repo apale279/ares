@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Mezzo } from '../types'
+import { geocodeIndirizzo } from '../utils/geocode'
 import { copiaEquipaggio, equipaggioVuoto } from '../utils/equipaggio'
 import { MezzoStazionamentoMap } from './MezzoStazionamentoMap'
 import { PhotonAddressField } from './PhotonAddressField'
@@ -31,6 +32,7 @@ export function MezzoFormModal({
   }
 
   const [form, setForm] = useState<Omit<Mezzo, 'id' | 'stato'>>(empty)
+  const [geoBusy, setGeoBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -140,6 +142,9 @@ export function MezzoFormModal({
                     : form.stazionamento
                 }
                 placeholder="Cerca lo stazionamento in Italia (via, sede, comune…)"
+                onDraftCommit={(text) =>
+                  setForm((f) => ({ ...f, stazionamento: text }))
+                }
                 onChange={(hit) => {
                   if (!hit) {
                     setForm((f) => ({
@@ -159,9 +164,66 @@ export function MezzoFormModal({
                 }}
               />
             </label>
+            <div className="ares-row">
+              <label>
+                Lat
+                <input
+                  type="number"
+                  step="any"
+                  value={form.stazionamentoLat ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      stazionamentoLat:
+                        e.target.value === '' ? null : Number(e.target.value),
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Lng
+                <input
+                  type="number"
+                  step="any"
+                  value={form.stazionamentoLng ?? ''}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      stazionamentoLng:
+                        e.target.value === '' ? null : Number(e.target.value),
+                    }))
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                className="ares-btn secondary"
+                disabled={geoBusy || !form.stazionamento.trim()}
+                title="Usa il testo stazionamento (anche senza suggerimento Photon) con geocoding Nominatim"
+                onClick={async () => {
+                  setGeoBusy(true)
+                  try {
+                    const hit = await geocodeIndirizzo(form.stazionamento.trim())
+                    if (hit) {
+                      setForm((f) => ({
+                        ...f,
+                        stazionamento: hit.displayName,
+                        stazionamentoLat: hit.lat,
+                        stazionamentoLng: hit.lng,
+                      }))
+                    } else alert('Indirizzo non trovato.')
+                  } finally {
+                    setGeoBusy(false)
+                  }
+                }}
+              >
+                {geoBusy ? '…' : 'Cerca coordinate'}
+              </button>
+            </div>
             <p className="ares-muted full">
-              Coordinate: Lat {form.stazionamentoLat?.toFixed(5) ?? '—'}, Lng{' '}
-              {form.stazionamentoLng?.toFixed(5) ?? '—'} (anche dalla mappa sotto)
+              Coordinate attuali: Lat {form.stazionamentoLat?.toFixed(5) ?? '—'}, Lng{' '}
+              {form.stazionamentoLng?.toFixed(5) ?? '—'}. Puoi modificarle a mano,
+              cercarle dal testo, oppure cliccare sulla mappa sotto.
             </p>
           </div>
 

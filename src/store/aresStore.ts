@@ -671,6 +671,7 @@ export const useAresStore = create<AresState>()(
       storage: isSupabaseConfigured()
         ? createJSONStorage(() => createSupabaseJsonStorage())
         : createJSONStorage(() => localStorage),
+      /** Tutto lo stato operativo qui elencato viene serializzato nello stesso JSON (Supabase `ares_state` se configurato, altrimenti solo locale). */
       partialize: (s) => ({
         impostazioni: s.impostazioni,
         eventi: s.eventi,

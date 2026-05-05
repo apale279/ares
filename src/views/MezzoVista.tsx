@@ -113,6 +113,16 @@ export function MezzoVista() {
             <p>
               <strong>Aperta:</strong> {formatDataOra(active.missione.createdAt)}
             </p>
+            {active.missione.esitoMissione?.trim() ? (
+              <p>
+                <strong>Esito missione:</strong> {active.missione.esitoMissione}
+              </p>
+            ) : null}
+            {active.missione.noteMissione?.trim() ? (
+              <p>
+                <strong>Note missione:</strong> {active.missione.noteMissione}
+              </p>
+            ) : null}
           </div>
           <div className="ares-mezzo-block">
             <h3>Pazienti evento {active.evento.id}</h3>

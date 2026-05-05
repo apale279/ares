@@ -260,25 +260,32 @@ const MISSION_STATE_ORDER = [
   'FINE_MISSIONE',
 ]
 
+/** Etichetta dello stato (stesso significato dell’app centrale). */
+const LABEL_STATO_MISSIONE = {
+  ALLERTARE: 'Allertare',
+  ALLERTATO: 'Allertato',
+  PARTITO: 'Partito',
+  IN_POSTO: 'In posto',
+  DIRETTO_IN_H: 'Diretto in H',
+  ARRIVATO_IN_H: 'Arrivato in H',
+  RIENTRO: 'Rientro',
+  FINE_MISSIONE: 'Fine missione',
+}
+
+/** Un solo passo in avanti rispetto allo stato attuale sul DB (anche se la centrale ha saltato stati dall’interfaccia). */
 function nextMissionState(stato) {
   const idx = MISSION_STATE_ORDER.indexOf(stato)
   if (idx < 0 || idx >= MISSION_STATE_ORDER.length - 1) return stato
   return MISSION_STATE_ORDER[idx + 1]
 }
 
+/** Pulsante = nome dello stato successivo rispetto a currentState (letto dal DB). */
 function buildAdvanceKeyboard(missioneId, currentState) {
-  const labelMap = {
-    ALLERTARE: 'Allertato',
-    ALLERTATO: 'Partito',
-    PARTITO: 'In posto',
-    IN_POSTO: 'Diretto in H',
-    DIRETTO_IN_H: 'Arrivato in H',
-    ARRIVATO_IN_H: 'Rientro',
-    RIENTRO: 'Fine missione',
-    FINE_MISSIONE: 'Completata',
-  }
   const next = nextMissionState(currentState)
-  const label = labelMap[next] ?? 'Avanza stato'
+  if (next === currentState) {
+    return Markup.inlineKeyboard([])
+  }
+  const label = LABEL_STATO_MISSIONE[next] ?? next
   return Markup.inlineKeyboard([
     [Markup.button.callback(label, `ADVANCE:${missioneId}`)],
   ])
@@ -410,6 +417,7 @@ bot.action(/^ADVANCE:(.+)$/, async (ctx) => {
     await ctx.answerCbQuery('Non autorizzato su questo mezzo')
     return
   }
+  // Sempre un passo avanti rispetto allo stato corrente sul DB (sovrascritture centrale incluse).
   const next = nextMissionState(missione.stato)
   if (next === missione.stato) {
     await ctx.answerCbQuery('Nessun avanzamento disponibile')
@@ -421,6 +429,7 @@ bot.action(/^ADVANCE:(.+)$/, async (ctx) => {
     stato: next,
     statoHistory: [...(missione.statoHistory ?? []), { stato: next, at: now }],
   }
+  missionCache.set(missioneId, missioni[idx])
   let pazientiNext = pazienti
   if (next === 'ARRIVATO_IN_H') {
     pazientiNext = pazienti.map((p) => {
@@ -469,8 +478,13 @@ bot.action(/^ADVANCE:(.+)$/, async (ctx) => {
     await ctx.answerCbQuery('Errore aggiornando stato')
     return
   }
-  await ctx.answerCbQuery(`Stato -> ${next}`)
-  await ctx.reply(`Missione ${missione.id} avanzata a ${next}.`)
+  await ctx.answerCbQuery(LABEL_STATO_MISSIONE[next] ?? next)
+  try {
+    const kb = buildAdvanceKeyboard(missioneId, next)
+    await ctx.editMessageReplyMarkup(kb.reply_markup)
+  } catch {
+    /* messaggio troppo vecchio o non inline: ignora */
+  }
 })
 
 async function notifyRequestedNotes(nextState) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { DEFAULT_IMPOSTAZIONI } from '../constants'
 import type { AppRouteKey, Mezzo, RankUtente, Utente } from '../types'
 import { testoMultirigaDaVoci, vociDaTestoMultiriga } from '../utils/textLists'
+import { ImportMezziExcelButton } from '../components/ImportMezziExcelButton'
 import { MezzoFormModal } from '../components/MezzoFormModal'
 import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchichePanel'
 import { useAresStore } from '../store/aresStore'
@@ -214,20 +215,6 @@ export function Settings() {
         </details>
       </section>
         </>
-      )}
-
-      {tab === 'mezzi' && (
-        <>
-      <section className="ares-settings-entity-block">
-        <h1 className="ares-settings-entity-title">Mezzo — tipi</h1>
-        <ImpostazioniTextPanel
-          title="Tipi mezzo"
-          description="Compaiono nel menu a tendina in anagrafica mezzo (es. MSB, CMR, MSA)."
-          value={impostazioni.tipiMezzo}
-          onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
-        />
-      </section>
-      </>
       )}
 
       {tab === 'generali' && (
@@ -536,21 +523,36 @@ export function Settings() {
       {tab === 'mezzi' && (
         <>
       <section className="ares-settings-entity-block">
+        <h1 className="ares-settings-entity-title">Mezzo — tipi</h1>
+        <ImpostazioniTextPanel
+          title="Tipi mezzo"
+          description="Compaiono nel menu a tendina in anagrafica mezzo (es. MSB, CMR, MSA). In import Excel, se il tipo non è in elenco viene usato il primo valore qui definito."
+          value={impostazioni.tipiMezzo}
+          onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
+        />
+      </section>
+      <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Mezzi — anagrafica</h1>
         <p className="ares-muted">
-          Stazionamento: indirizzo + coordinate (geocoding o click sulla mappa nel
-          form).
+          Stazionamento: Photon, coordinate manuali o click sulla mappa nel form.{' '}
+          <strong>Importa</strong> legge il foglio <strong>EQUIPAGGI</strong> (o il
+          primo foglio): colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
+          (geocoding), F–Q=equipaggio (autista, capo, socc.1, socc.2). Stessa sigla =
+          sovrascrittura.
         </p>
-        <button
-          type="button"
-          className="ares-btn primary"
-          onClick={() => {
-            setEditingMezzo(null)
-            setMezzoModalOpen(true)
-          }}
-        >
-          Crea mezzo
-        </button>
+        <div className="ares-inline">
+          <button
+            type="button"
+            className="ares-btn primary"
+            onClick={() => {
+              setEditingMezzo(null)
+              setMezzoModalOpen(true)
+            }}
+          >
+            Crea mezzo
+          </button>
+          <ImportMezziExcelButton tipiMezzo={tipiMezzoList} />
+        </div>
         <ul className="ares-mezzi-settings-list">
           {mezzi.map((m) => (
             <li key={m.id}>
