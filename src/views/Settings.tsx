@@ -614,8 +614,10 @@ export function Settings() {
           importata). Colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
           (geocoding), F–Q=equipaggio (autista, capo, socc.1, socc.2), R=stato (DISPONIBILE,
           OCCUPATO, NON DISPONIBILE). Stessa sigla =
-          sovrascrittura. L’ordine delle righe (frecce) si ripete nel pannello{' '}
-          <strong>Mezzi</strong> della dashboard.
+          sovrascrittura.           L’ordine delle righe (frecce) si ripete nel pannello{' '}
+          <strong>Mezzi</strong> della dashboard. Senza ordine salvato: prima i mezzi{' '}
+          <strong>CRI</strong> (sigla che inizia con «CRI» o tipo «CRI»), con tipi MSB → MSA
+          → resto, poi gli altri mezzi; «Ordine predefinito» ripristina questa logica.
         </p>
         <div className="ares-inline">
           <button
