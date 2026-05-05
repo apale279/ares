@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { DEFAULT_IMPOSTAZIONI } from '../constants'
 import type { AppRouteKey, Mezzo, RankUtente, Utente } from '../types'
 import { testoMultirigaDaVoci, vociDaTestoMultiriga } from '../utils/textLists'
@@ -77,6 +77,7 @@ export function Settings() {
   const [tab, setTab] = useState<
     'generali' | 'mezzi' | 'valutazioni' | 'utenti' | 'pma_impostazioni'
   >('generali')
+  const [filtroMezzi, setFiltroMezzi] = useState('')
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
@@ -86,6 +87,26 @@ export function Settings() {
   const showModalitaSviluppoRow =
     isAdminUser(impostazioni, session?.userId) ||
     impostazioni.modalitaSviluppo === true
+
+  const mezziListaFiltrata = useMemo(() => {
+    const sorted = [...mezzi].sort((a, b) =>
+      a.sigla.localeCompare(b.sigla, 'it', { sensitivity: 'base' }),
+    )
+    const q = filtroMezzi.trim().toLowerCase()
+    if (!q) return sorted
+    return sorted.filter((m) => {
+      const blocchi = [
+        m.sigla,
+        m.tipo,
+        m.siglaRadio,
+        m.targa,
+        m.stazionamento,
+        m.stato,
+        m.id,
+      ]
+      return blocchi.some((x) => String(x ?? '').toLowerCase().includes(q))
+    })
+  }, [mezzi, filtroMezzi])
 
   const toggleRankRoute = (route: AppRouteKey) => {
     setRankRoutes((prev) =>
@@ -604,22 +625,72 @@ export function Settings() {
             </button>
           </div>
         ) : null}
-        <ul className="ares-mezzi-settings-list">
-          {mezzi.map((m) => (
-            <li key={m.id}>
-              <button
-                type="button"
-                className="ares-btn secondary"
-                onClick={() => {
-                  setEditingMezzo(m)
-                  setMezzoModalOpen(true)
-                }}
-              >
-                {m.sigla} — {m.tipo} ({m.stato})
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="ares-mezzi-settings-toolbar">
+          <label className="ares-mezzi-settings-search">
+            Ricerca rapida
+            <input
+              type="search"
+              value={filtroMezzi}
+              onChange={(e) => setFiltroMezzi(e.target.value)}
+              placeholder="Sigla, tipo, radio, targa, stazionamento, stato…"
+              spellCheck={false}
+            />
+          </label>
+          <span className="ares-muted ares-mezzi-settings-count">
+            {mezziListaFiltrata.length} di {mezzi.length}
+          </span>
+        </div>
+        <div className="ares-mezzi-settings-table-wrap">
+          <table className="ares-mezzi-settings-table">
+            <thead>
+              <tr>
+                <th>Sigla</th>
+                <th>Tipo</th>
+                <th>Stato</th>
+                <th>Radio</th>
+                <th>Targa</th>
+                <th>Stazionamento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mezziListaFiltrata.map((m) => (
+                <tr
+                  key={m.id}
+                  className="ares-mezzi-settings-row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setEditingMezzo(m)
+                    setMezzoModalOpen(true)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setEditingMezzo(m)
+                      setMezzoModalOpen(true)
+                    }
+                  }}
+                >
+                  <td data-label="Sigla">
+                    <span className="ares-mezzi-settings-sigla">{m.sigla}</span>
+                  </td>
+                  <td data-label="Tipo">{m.tipo}</td>
+                  <td data-label="Stato">{m.stato}</td>
+                  <td data-label="Radio">{m.siglaRadio || '—'}</td>
+                  <td data-label="Targa">{m.targa || '—'}</td>
+                  <td data-label="Stazionamento">{m.stazionamento || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {mezziListaFiltrata.length === 0 ? (
+            <p className="ares-muted ares-mezzi-settings-empty">
+              {mezzi.length === 0
+                ? 'Nessun mezzo in anagrafica.'
+                : 'Nessun mezzo corrisponde alla ricerca.'}
+            </p>
+          ) : null}
+        </div>
       </section>
       </>
       )}
