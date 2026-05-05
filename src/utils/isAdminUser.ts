@@ -1,4 +1,5 @@
 import type { Impostazioni } from '../types'
+import { isModalitaSviluppoAttiva } from './modalitaSviluppo'
 
 /** Rank amministratore: id predefinito o nome rank esattamente «ADMIN». */
 export function isAdminUser(
@@ -20,6 +21,6 @@ export function hasFullAppPrivileges(
   imp: Impostazioni,
   userId: string | null | undefined,
 ): boolean {
-  if (imp.modalitaSviluppo === true) return true
+  if (isModalitaSviluppoAttiva(imp)) return true
   return isAdminUser(imp, userId)
 }

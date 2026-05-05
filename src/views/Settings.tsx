@@ -9,6 +9,7 @@ import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchi
 import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
 import { isAdminUser } from '../utils/isAdminUser'
+import { isModalitaSviluppoAttiva } from '../utils/modalitaSviluppo'
 import { ImpostazioniPmaTab } from './ImpostazioniPmaTab'
 
 const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
@@ -86,7 +87,7 @@ export function Settings() {
 
   const showModalitaSviluppoRow =
     isAdminUser(impostazioni, session?.userId) ||
-    impostazioni.modalitaSviluppo === true
+    isModalitaSviluppoAttiva(impostazioni)
 
   const mezziListaFiltrata = useMemo(() => {
     const sorted = [...mezzi].sort((a, b) =>
@@ -173,7 +174,7 @@ export function Settings() {
           <label className="ares-check">
             <input
               type="checkbox"
-              checked={impostazioni.modalitaSviluppo === true}
+              checked={isModalitaSviluppoAttiva(impostazioni)}
               onChange={(e) =>
                 setImpostazioni({ modalitaSviluppo: e.target.checked })
               }

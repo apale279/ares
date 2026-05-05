@@ -28,6 +28,7 @@ import {
 } from './store/supabasePersistStorage'
 import type { AppRouteKey } from './types'
 import { appVersionNavLabel } from './utils/appVersionLabel'
+import { isModalitaSviluppoAttiva } from './utils/modalitaSviluppo'
 import { firstAllowedRoutePath, routeAllowedForUser } from './utils/routeAccess'
 import './ares.css'
 
@@ -187,11 +188,23 @@ function AppShellRoutes() {
   )
 }
 
+function isSessionValid(
+  s: { userId: string; nomeUtente: string } | null,
+): s is { userId: string; nomeUtente: string } {
+  return (
+    s != null &&
+    Boolean(s.userId.trim()) &&
+    Boolean(s.nomeUtente.trim())
+  )
+}
+
 export default function App() {
   const { session } = useAuth()
-  const modalitaSviluppo = useAresStore((s) => s.impostazioni.modalitaSviluppo === true)
+  const devBypassLogin = useAresStore((s) => isModalitaSviluppoAttiva(s.impostazioni))
+  const sessionOk = isSessionValid(session)
 
-  if (!session && !modalitaSviluppo) {
+  /** Login obbligatorio salvo modalità sviluppo flaggata in Impostazioni. */
+  if (!sessionOk && !devBypassLogin) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />

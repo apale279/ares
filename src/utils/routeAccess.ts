@@ -1,4 +1,5 @@
 import type { AppRouteKey, Impostazioni } from '../types'
+import { isModalitaSviluppoAttiva } from './modalitaSviluppo'
 
 const ROUTE_ORDER: { key: AppRouteKey; path: string }[] = [
   { key: 'dashboard', path: '/dashboard' },
@@ -14,7 +15,7 @@ export function routeAllowedForUser(
   userId: string | null | undefined,
   route: AppRouteKey,
 ): boolean {
-  if (imp.modalitaSviluppo === true) return true
+  if (isModalitaSviluppoAttiva(imp)) return true
   if (!userId) return false
   const u = imp.utenti?.find((x) => x.id === userId)
   if (!u) return false
