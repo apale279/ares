@@ -582,6 +582,28 @@ export function Settings() {
           </button>
           <ImportMezziExcelButton tipiMezzo={tipiMezzoList} />
         </div>
+        {isAdminUser(impostazioni, session?.userId) && mezzi.length > 0 ? (
+          <div className="ares-inline" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className="ares-btn danger"
+              onClick={() => {
+                const n = mezzi.length
+                if (
+                  !window.confirm(
+                    `Eliminare definitivamente tutti i mezzi (${n})?\n\n` +
+                      'Verranno rimosse anche le missioni legate a ciascun mezzo; sui pazienti il riferimento al mezzo di trasporto verrà azzerato.',
+                  )
+                )
+                  return
+                const ids = mezzi.map((m) => m.id)
+                for (const id of ids) deleteMezzo(id)
+              }}
+            >
+              Cancella tutto
+            </button>
+          </div>
+        ) : null}
         <ul className="ares-mezzi-settings-list">
           {mezzi.map((m) => (
             <li key={m.id}>
