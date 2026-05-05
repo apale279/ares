@@ -197,6 +197,7 @@ export function migrateImpostazioni(
     rankUtente,
     utenti,
     modalitaSviluppo: raw?.modalitaSviluppo === true,
+    ordineMezziIds: asStringArray(raw?.ordineMezziIds, []),
   }
 }
 

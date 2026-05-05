@@ -10,6 +10,10 @@ import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
 import { isAdminUser } from '../utils/isAdminUser'
 import { isModalitaSviluppoAttiva } from '../utils/modalitaSviluppo'
+import {
+  mezziInOrdinePersistito,
+  ordineMezziCompleto,
+} from '../utils/ordineMezzi'
 import { ImpostazioniPmaTab } from './ImpostazioniPmaTab'
 
 const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
@@ -89,13 +93,15 @@ export function Settings() {
     isAdminUser(impostazioni, session?.userId) ||
     isModalitaSviluppoAttiva(impostazioni)
 
+  const mezziOrdinati = useMemo(
+    () => mezziInOrdinePersistito(mezzi, impostazioni.ordineMezziIds),
+    [mezzi, impostazioni.ordineMezziIds],
+  )
+
   const mezziListaFiltrata = useMemo(() => {
-    const sorted = [...mezzi].sort((a, b) =>
-      a.sigla.localeCompare(b.sigla, 'it', { sensitivity: 'base' }),
-    )
     const q = filtroMezzi.trim().toLowerCase()
-    if (!q) return sorted
-    return sorted.filter((m) => {
+    if (!q) return mezziOrdinati
+    return mezziOrdinati.filter((m) => {
       const blocchi = [
         m.sigla,
         m.tipo,
@@ -107,7 +113,24 @@ export function Settings() {
       ]
       return blocchi.some((x) => String(x ?? '').toLowerCase().includes(q))
     })
-  }, [mezzi, filtroMezzi])
+  }, [mezziOrdinati, filtroMezzi])
+
+  const idsOrdineCompletoMemo = useMemo(
+    () => ordineMezziCompleto(mezzi, impostazioni.ordineMezziIds),
+    [mezzi, impostazioni.ordineMezziIds],
+  )
+
+  const spostaMezzoInElenco = (id: string, delta: number) => {
+    const cur = ordineMezziCompleto(mezzi, impostazioni.ordineMezziIds)
+    const i = cur.indexOf(id)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= cur.length) return
+    const next = [...cur]
+    const t = next[i]!
+    next[i] = next[j]!
+    next[j] = t
+    setImpostazioni({ ordineMezziIds: next })
+  }
 
   const toggleRankRoute = (route: AppRouteKey) => {
     setRankRoutes((prev) =>
@@ -589,7 +612,8 @@ export function Settings() {
           <strong>Importa</strong> legge il foglio <strong>EQUIPAGGI</strong> (o il
           primo foglio): colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
           (geocoding), F–Q=equipaggio (autista, capo, socc.1, socc.2). Stessa sigla =
-          sovrascrittura.
+          sovrascrittura. L’ordine delle righe (frecce) si ripete nel pannello{' '}
+          <strong>Mezzi</strong> della dashboard.
         </p>
         <div className="ares-inline">
           <button
@@ -620,6 +644,7 @@ export function Settings() {
                   return
                 const ids = mezzi.map((m) => m.id)
                 for (const id of ids) deleteMezzo(id)
+                setImpostazioni({ ordineMezziIds: [] })
               }}
             >
               Cancella tutto
@@ -640,11 +665,29 @@ export function Settings() {
           <span className="ares-muted ares-mezzi-settings-count">
             {mezziListaFiltrata.length} di {mezzi.length}
           </span>
+          {(impostazioni.ordineMezziIds?.length ?? 0) > 0 ? (
+            <button
+              type="button"
+              className="ares-btn small ghost"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Ripristinare l’ordine predefinito (raggruppato per tipo, disponibili in cima)?',
+                  )
+                )
+                  return
+                setImpostazioni({ ordineMezziIds: [] })
+              }}
+            >
+              Ordine predefinito
+            </button>
+          ) : null}
         </div>
         <div className="ares-mezzi-settings-table-wrap">
           <table className="ares-mezzi-settings-table">
             <thead>
               <tr>
+                <th className="ares-mezzi-settings-ord-col">Ord.</th>
                 <th>Sigla</th>
                 <th>Tipo</th>
                 <th>Stato</th>
@@ -654,7 +697,10 @@ export function Settings() {
               </tr>
             </thead>
             <tbody>
-              {mezziListaFiltrata.map((m) => (
+              {mezziListaFiltrata.map((m) => {
+                const fullIdx = idsOrdineCompletoMemo.indexOf(m.id)
+                const nOrd = idsOrdineCompletoMemo.length
+                return (
                 <tr
                   key={m.id}
                   className="ares-mezzi-settings-row"
@@ -672,6 +718,40 @@ export function Settings() {
                     }
                   }}
                 >
+                  <td
+                    className="ares-mezzi-settings-ord-col"
+                    data-label="Ordine"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="ares-mezzi-ord-btns">
+                      <button
+                        type="button"
+                        className="ares-btn small secondary"
+                        title="Sposta sopra nell’elenco"
+                        aria-label={`Sposta ${m.sigla} sopra`}
+                        disabled={fullIdx <= 0}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          spostaMezzoInElenco(m.id, -1)
+                        }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="ares-btn small secondary"
+                        title="Sposta sotto nell’elenco"
+                        aria-label={`Sposta ${m.sigla} sotto`}
+                        disabled={fullIdx < 0 || fullIdx >= nOrd - 1}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          spostaMezzoInElenco(m.id, 1)
+                        }}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  </td>
                   <td data-label="Sigla">
                     <span className="ares-mezzi-settings-sigla">{m.sigla}</span>
                   </td>
@@ -681,7 +761,8 @@ export function Settings() {
                   <td data-label="Targa">{m.targa || '—'}</td>
                   <td data-label="Stazionamento">{m.stazionamento || '—'}</td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
           {mezziListaFiltrata.length === 0 ? (

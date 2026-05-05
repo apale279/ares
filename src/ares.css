@@ -1141,6 +1141,24 @@ textarea {
   text-align: center;
 }
 
+.ares-mezzi-settings-ord-col {
+  width: 76px;
+  white-space: nowrap;
+  vertical-align: middle !important;
+}
+
+.ares-mezzi-ord-btns {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.ares-mezzi-settings-row .ares-mezzi-settings-ord-col .ares-btn {
+  min-width: 2rem;
+  padding-inline: 6px;
+}
+
 .ares-mezzo-mini-map {
   margin: 12px 0;
 }

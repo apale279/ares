@@ -67,6 +67,11 @@ function AppShellRoutes() {
     [impostazioni, userId],
   )
 
+  const homePath = useMemo(() => {
+    if (routeAllowedForUser(impostazioni, userId, 'dashboard')) return '/dashboard'
+    return firstAllowedPath
+  }, [impostazioni, userId, firstAllowedPath])
+
   const [syncBusy, setSyncBusy] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncAt())
   const syncEnabled = isSupabaseConfigured()
@@ -136,7 +141,7 @@ function AppShellRoutes() {
       </nav>
       <main className="ares-main">
         <Routes>
-          <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
+          <Route path="/" element={<Navigate to={homePath} replace />} />
           <Route
             path="/dashboard"
             element={
@@ -179,8 +184,8 @@ function AppShellRoutes() {
               )
             }
           />
-          <Route path="/login" element={<Navigate to={firstAllowedPath} replace />} />
-          <Route path="*" element={<Navigate to={firstAllowedPath} replace />} />
+          <Route path="/login" element={<Navigate to={homePath} replace />} />
+          <Route path="*" element={<Navigate to={homePath} replace />} />
         </Routes>
       </main>
       <GlobalModals />

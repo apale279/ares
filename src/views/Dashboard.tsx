@@ -8,15 +8,21 @@ import {
   prossimoStatoMissione,
 } from '../constants'
 import { useAresStore } from '../store/aresStore'
-import type { Mezzo, Nota } from '../types'
+import type { Nota } from '../types'
 import { shortAddress } from '../utils/address'
 import { formatDataOra } from '../utils/format'
+import {
+  mezziInOrdinePersistito,
+  raggruppaMezziLegacyDashboard,
+  raggruppaMezziPerTipoDashboard,
+} from '../utils/ordineMezzi'
 import logoAres from '../../logo.png'
 
 export function Dashboard() {
   const eventi = useAresStore((s) => s.eventi)
   const missioni = useAresStore((s) => s.missioni)
   const mezzi = useAresStore((s) => s.mezzi)
+  const ordineMezziIds = useAresStore((s) => s.impostazioni.ordineMezziIds)
   const pazienti = useAresStore((s) => s.pazienti)
   const note = useAresStore((s) => s.note)
   const avanzaMissione = useAresStore((s) => s.avanzaMissione)
@@ -132,28 +138,14 @@ export function Dashboard() {
   )
 
   const mezziPerTipo = useMemo(() => {
-    const sorted = [...mezzi].sort(
-      (a, b) =>
-        a.tipo.localeCompare(b.tipo, 'it') || a.sigla.localeCompare(b.sigla, 'it'),
-    )
-    const groups: { tipo: string; rows: Mezzo[] }[] = []
-    for (const m of sorted) {
-      const last = groups[groups.length - 1]
-      if (!last || last.tipo !== m.tipo) {
-        groups.push({ tipo: m.tipo, rows: [m] })
-      } else {
-        last.rows.push(m)
-      }
+    if (!mezzi.length) return []
+    const haOrdinePersonalizzato = (ordineMezziIds?.length ?? 0) > 0
+    if (!haOrdinePersonalizzato) {
+      return raggruppaMezziLegacyDashboard(mezzi)
     }
-    for (const g of groups) {
-      g.rows.sort((a, b) => {
-        const wa = a.stato === 'DISPONIBILE' ? 0 : 1
-        const wb = b.stato === 'DISPONIBILE' ? 0 : 1
-        return wa - wb || a.sigla.localeCompare(b.sigla, 'it')
-      })
-    }
-    return groups
-  }, [mezzi])
+    const flat = mezziInOrdinePersistito(mezzi, ordineMezziIds)
+    return raggruppaMezziPerTipoDashboard(flat)
+  }, [mezzi, ordineMezziIds])
 
   const missionCountByEvent = useMemo(() => {
     const m = new Map<string, number>()

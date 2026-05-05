@@ -261,6 +261,8 @@ export interface Impostazioni {
    * e accesso a tutte le viste (come rank admin). Persistito con lo stato app.
    */
   modalitaSviluppo?: boolean
+  /** Id mezzi nell’ordine mostrato in Impostazioni e nel pannello Mezzi dashboard. */
+  ordineMezziIds: string[]
   tipiMezzo: string[]
   ospedali: string[]
   /** Nomi PMA (sincronizzati con postazioniPma; retrocompatibilità) */
