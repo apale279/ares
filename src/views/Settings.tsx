@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { DEFAULT_IMPOSTAZIONI } from '../constants'
 import type { AppRouteKey, Mezzo, RankUtente, Utente } from '../types'
 import { testoMultirigaDaVoci, vociDaTestoMultiriga } from '../utils/textLists'
+import { DownloadFullDatabaseButton } from '../components/DownloadFullDatabaseButton'
 import { ImportMezziExcelButton } from '../components/ImportMezziExcelButton'
 import { MezzoFormModal } from '../components/MezzoFormModal'
 import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchichePanel'
@@ -132,6 +133,7 @@ export function Settings() {
 
       {tab === 'generali' && (
         <>
+      <DownloadFullDatabaseButton />
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Evento — classificazione e contesto</h1>
         <div className="ares-settings-entity-grid">

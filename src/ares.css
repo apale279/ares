@@ -79,6 +79,74 @@ button.ares-link-mission,
   border-bottom: 1px solid var(--ares-border);
 }
 
+.ares-nav--triple {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+@media (max-width: 960px) {
+  .ares-nav--triple {
+    flex-wrap: wrap;
+  }
+}
+
+.ares-nav-left {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.ares-nav-center {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ares-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.ares-nav-logout {
+  font-weight: 600;
+}
+
+.ares-persist-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ares-persist-dot--ok {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35);
+}
+
+.ares-persist-dot--bad {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35);
+}
+
+.ares-login-err {
+  color: var(--ares-danger);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.ares-admin-export {
+  margin-bottom: 20px;
+}
+
 .ares-nav button {
   font: inherit;
   padding: 8px 16px;

@@ -6,16 +6,19 @@ import {
   Routes,
   useNavigate,
 } from 'react-router-dom'
+import { useAuth } from './auth/AuthContext'
 import { Dashboard } from './views/Dashboard'
 import { PmaModulo } from './views/PmaModulo'
 import { Settings } from './views/Settings'
 import { Ricerca } from './views/Ricerca'
 import { MezzoVista } from './views/MezzoVista'
 import { Diario } from './views/Diario'
+import { Login } from './views/Login'
 import { EventDetailModal } from './components/EventDetailModal'
 import { MissionDetailModal } from './components/MissionDetailModal'
 import { PatientDetailModal } from './components/PatientDetailModal'
 import { MezzoDetailModal } from './components/MezzoDetailModal'
+import { PersistenceStatusDot } from './components/PersistenceStatusDot'
 import { useAresStore } from './store/aresStore'
 import {
   forceSupabaseSync,
@@ -50,15 +53,13 @@ function GlobalModals() {
   )
 }
 
-export default function App() {
+function AppShellRoutes() {
   const navigate = useNavigate()
   const firstAllowedPath = useMemo(() => '/dashboard', [])
-  const authEnabled = false
   const [syncBusy, setSyncBusy] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncAt())
   const syncEnabled = isSupabaseConfigured()
-
-  const canRoute = (_k: AppRouteKey): boolean => !authEnabled || true
+  const { logout } = useAuth()
 
   useEffect(() => onSyncUpdate((iso) => setLastSync(iso)), [])
 
@@ -66,44 +67,92 @@ export default function App() {
     ? `SYNC ${new Date(lastSync).toLocaleString('it-IT')}`
     : 'SYNC --'
 
+  const canRoute = (_k: AppRouteKey): boolean => true
+
   return (
     <div className="ares-app">
-      <nav className="ares-nav">
-        {syncEnabled && (
+      <nav className="ares-nav ares-nav--triple">
+        <div className="ares-nav-left">
+          <PersistenceStatusDot />
+        </div>
+        <div className="ares-nav-center">
+          {ROUTES.filter((r) => canRoute(r.key)).map((r) => (
+            <NavLink
+              key={r.key}
+              to={r.to}
+              className={({ isActive }) => (isActive ? 'active' : '')}
+            >
+              {r.label}
+            </NavLink>
+          ))}
+        </div>
+        <div className="ares-nav-right">
+          {syncEnabled && (
+            <button
+              type="button"
+              className="ares-nav-sync"
+              disabled={syncBusy}
+              onClick={async () => {
+                const key = useAresStore.persist.getOptions().name
+                if (!key) return
+                setSyncBusy(true)
+                try {
+                  await forceSupabaseSync(key)
+                } finally {
+                  setSyncBusy(false)
+                }
+              }}
+            >
+              {syncBusy ? 'SYNC...' : syncLabel}
+            </button>
+          )}
           <button
             type="button"
-            className="ares-nav-sync"
-            disabled={syncBusy}
-            onClick={async () => {
-              const key = useAresStore.persist.getOptions().name
-              if (!key) return
-              setSyncBusy(true)
-              try {
-                await forceSupabaseSync(key)
-              } finally {
-                setSyncBusy(false)
-              }
+            className="ares-btn ghost ares-nav-logout"
+            onClick={() => {
+              logout()
+              navigate('/login', { replace: true })
             }}
           >
-            {syncBusy ? 'SYNC...' : syncLabel}
+            Logout
           </button>
-        )}
-        {ROUTES.filter((r) => canRoute(r.key)).map((r) => (
-          <NavLink key={r.key} to={r.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-            {r.label}
-          </NavLink>
-        ))}
+        </div>
       </nav>
       <main className="ares-main">
         <Routes>
           <Route path="/" element={<Navigate to={firstAllowedPath} replace />} />
-          <Route path="/dashboard" element={canRoute('dashboard') ? <Dashboard /> : <Navigate to={firstAllowedPath} replace />} />
-          <Route path="/impostazioni" element={canRoute('impostazioni') ? <Settings /> : <Navigate to={firstAllowedPath} replace />} />
-          <Route path="/pma" element={canRoute('pma_modulo') ? <PmaModulo /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              canRoute('dashboard') ? <Dashboard /> : <Navigate to={firstAllowedPath} replace />
+            }
+          />
+          <Route
+            path="/impostazioni"
+            element={
+              canRoute('impostazioni') ? (
+                <Settings />
+              ) : (
+                <Navigate to={firstAllowedPath} replace />
+              )
+            }
+          />
+          <Route
+            path="/pma"
+            element={
+              canRoute('pma_modulo') ? <PmaModulo /> : <Navigate to={firstAllowedPath} replace />
+            }
+          />
           <Route path="/PMA" element={<Navigate to="/pma" replace />} />
           <Route path="/pma-modulo" element={<Navigate to="/pma" replace />} />
-          <Route path="/mezzo" element={canRoute('mezzo') ? <MezzoVista /> : <Navigate to={firstAllowedPath} replace />} />
-          <Route path="/diario" element={canRoute('diario') ? <Diario /> : <Navigate to={firstAllowedPath} replace />} />
+          <Route
+            path="/mezzo"
+            element={canRoute('mezzo') ? <MezzoVista /> : <Navigate to={firstAllowedPath} replace />}
+          />
+          <Route
+            path="/diario"
+            element={canRoute('diario') ? <Diario /> : <Navigate to={firstAllowedPath} replace />}
+          />
           <Route
             path="/ricerca"
             element={
@@ -114,10 +163,26 @@ export default function App() {
               )
             }
           />
+          <Route path="/login" element={<Navigate to={firstAllowedPath} replace />} />
           <Route path="*" element={<Navigate to={firstAllowedPath} replace />} />
         </Routes>
       </main>
       <GlobalModals />
     </div>
   )
+}
+
+export default function App() {
+  const { session } = useAuth()
+
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    )
+  }
+
+  return <AppShellRoutes />
 }

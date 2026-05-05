@@ -12,6 +12,70 @@ let ignoreRealtimeUntil = 0
 let lastSyncAt: string | null = null
 const syncListeners = new Set<(iso: string) => void>()
 
+/** True mentre è in coda o in corso un flush verso Supabase. */
+let pendingRemoteFlush = false
+/** Ultimo errore di scrittura su Supabase (null = ok). */
+let lastRemoteError: string | null = null
+const persistHealthListeners = new Set<() => void>()
+
+function bumpPersistHealthListeners() {
+  for (const cb of persistHealthListeners) cb()
+}
+
+export type PersistenceHealthStatus =
+  | 'cloud_ok'
+  | 'cloud_pending'
+  | 'cloud_error'
+  | 'local_only'
+
+export function getPersistenceHealth(): {
+  status: PersistenceHealthStatus
+  title: string
+  detail: string
+  lastSyncAt: string | null
+} {
+  if (!isSupabaseConfigured()) {
+    return {
+      status: 'local_only',
+      title: 'Dati solo in locale',
+      detail:
+        'Mancano VITE_SUPABASE_URL e/o VITE_SUPABASE_ANON_KEY: lo stato ARES viene salvato solo nel browser (localStorage), non su database Supabase.',
+      lastSyncAt: null,
+    }
+  }
+  if (lastRemoteError) {
+    return {
+      status: 'cloud_error',
+      title: 'Errore salvataggio cloud',
+      detail: `L’ultimo invio a Supabase non è riuscito: ${lastRemoteError}. I dati restano comunque copiati in localStorage nel browser.`,
+      lastSyncAt,
+    }
+  }
+  if (pendingRemoteFlush || pendingValue !== null || saveTimer !== null) {
+    return {
+      status: 'cloud_pending',
+      title: 'Sincronizzazione in corso',
+      detail:
+        'Le ultime modifiche sono in invio verso Supabase (di solito entro pochi secondi). Nel frattempo sono già salvate in localStorage sul tuo PC.',
+      lastSyncAt,
+    }
+  }
+  return {
+    status: 'cloud_ok',
+    title: 'Salvato su Supabase',
+    detail:
+      'Le variabili Supabase sono configurate e l’ultimo salvataggio cloud è andato a buon fine. È mantenuta anche una copia in localStorage come backup.',
+    lastSyncAt,
+  }
+}
+
+export function onPersistHealthChange(cb: () => void): () => void {
+  persistHealthListeners.add(cb)
+  return () => {
+    persistHealthListeners.delete(cb)
+  }
+}
+
 function isSupabaseConfigured(): boolean {
   return Boolean(
     import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -32,7 +96,9 @@ async function upsertPayloadString(raw: string): Promise<void> {
   )
   if (error) throw error
   lastSyncAt = syncIso
+  lastRemoteError = null
   for (const cb of syncListeners) cb(syncIso)
+  bumpPersistHealthListeners()
 }
 
 export function createSupabaseJsonStorage(): StateStorageLike {
@@ -74,6 +140,8 @@ export function createSupabaseJsonStorage(): StateStorageLike {
       if (!isSupabaseConfigured()) return
 
       pendingValue = value
+      pendingRemoteFlush = true
+      bumpPersistHealthListeners()
       try {
         localStorage.setItem(name, value)
         localStorage.setItem(BACKUP_STORAGE_KEY, value)
@@ -90,21 +158,33 @@ export function createSupabaseJsonStorage(): StateStorageLike {
               const toWrite = pendingValue
               pendingValue = null
               if (toWrite == null) {
+                pendingRemoteFlush = false
+                bumpPersistHealthListeners()
                 resolve()
                 return
               }
               try {
                 await upsertPayloadString(toWrite)
+                pendingRemoteFlush = false
+                bumpPersistHealthListeners()
                 resolve()
               } catch (e) {
                 console.error('[Ares] Supabase setItem:', e)
+                lastRemoteError =
+                  e instanceof Error ? e.message : String(e)
+                pendingRemoteFlush = false
+                bumpPersistHealthListeners()
                 reject(e)
               }
             }, 0)
           }),
       )
 
-      await savePromiseChain
+      try {
+        await savePromiseChain
+      } catch {
+        /* errore già tracciato in lastRemoteError */
+      }
     },
 
     removeItem: async (_name: string): Promise<void> => {
@@ -139,7 +219,13 @@ export async function forceSupabaseSync(storageKey: string): Promise<void> {
     localStorage.getItem(BACKUP_STORAGE_KEY) ??
     localStorage.getItem(LEGACY_STORAGE_KEY)
   if (!candidate) return
-  await upsertPayloadString(candidate)
+  try {
+    await upsertPayloadString(candidate)
+  } catch (e) {
+    lastRemoteError = e instanceof Error ? e.message : String(e)
+    bumpPersistHealthListeners()
+    throw e
+  }
 }
 
 export function getLastSyncAt(): string | null {

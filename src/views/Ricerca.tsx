@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { equipaggioToPlainText } from '../utils/equipaggioPrint'
 import type { EsitoPaziente } from '../types'
+import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
 import { LABEL_STATO_MISSIONE } from '../constants'
+import { isAdminUser } from '../utils/isAdminUser'
 
 function norm(s: string): string {
   return s.toLowerCase().trim()
@@ -21,6 +23,13 @@ export function Ricerca({
   /** Es. passa a Dashboard così le schede modali restano visibili sopra. */
   onOpenDetail?: () => void
 }) {
+  const { session } = useAuth()
+  const impostazioni = useAresStore((s) => s.impostazioni)
+  const isAdmin = useMemo(
+    () => isAdminUser(impostazioni, session?.userId),
+    [impostazioni, session?.userId],
+  )
+
   const eventi = useAresStore((s) => s.eventi)
   const missioni = useAresStore((s) => s.missioni)
   const pazienti = useAresStore((s) => s.pazienti)
@@ -40,6 +49,9 @@ export function Ricerca({
   const [pa, setPa] = useState(true)
   const [eq, setEq] = useState(true)
   const [didSearch, setDidSearch] = useState(false)
+
+  /** Solo rank Admin: attiva checkbox e cancellazione multipla. */
+  const [cancellaMode, setCancellaMode] = useState(false)
 
   const [selEv, setSelEv] = useState<Set<string>>(() => new Set())
   const [selMi, setSelMi] = useState<Set<string>>(() => new Set())
@@ -116,6 +128,7 @@ export function Ricerca({
   )
 
   const totalSel = selEv.size + selMi.size + selPa.size
+  const showBulkUi = isAdmin && cancellaMode
 
   const clearSelection = useCallback(() => {
     setSelEv(new Set())
@@ -123,13 +136,18 @@ export function Ricerca({
     setSelPa(new Set())
   }, [])
 
+  const exitCancellaMode = useCallback(() => {
+    setCancellaMode(false)
+    clearSelection()
+  }, [clearSelection])
+
   const runSearch = () => {
     clearSelection()
     setDidSearch(true)
   }
 
-  const eliminaSelezionati = () => {
-    if (totalSel === 0) return
+  const confermaCancella = () => {
+    if (!showBulkUi || totalSel === 0) return
     const lines: string[] = []
     if (selEv.size) lines.push(`• ${selEv.size} evento/i`)
     if (selMi.size) lines.push(`• ${selMi.size} missione/i`)
@@ -157,13 +175,41 @@ export function Ricerca({
 
   return (
     <div className="ares-settings">
-      <h1>Ricerca</h1>
+      <div className="ares-inline space-between" style={{ flexWrap: 'wrap' }}>
+        <h1 style={{ margin: 0 }}>Ricerca</h1>
+        {isAdmin && (
+          <div className="ares-inline">
+            {!cancellaMode ? (
+              <button
+                type="button"
+                className="ares-btn warning"
+                title="Attiva checkbox su eventi, missioni e pazienti per una cancellazione multipla"
+                onClick={() => setCancellaMode(true)}
+              >
+                Cancella
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="ares-btn ghost"
+                onClick={() => exitCancellaMode()}
+              >
+                Esci da cancellazione
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       <p className="ares-muted">
-        Filtra per testo libero. Seleziona le categorie da includere. Puoi selezionare più
-        elementi e cancellarli con conferma.
+        Filtra per testo libero e seleziona le categorie da includere.
+        {isAdmin
+          ? cancellaMode
+            ? ' Modalità cancellazione: usa le checkbox, poi «Cancella» nel riepilogo per confermare.'
+            : ' Come amministratore puoi usare il pulsante «Cancella» per selezionare ed eliminare più record.'
+          : ''}
       </p>
 
-      {totalSel > 0 && (
+      {showBulkUi && totalSel > 0 && (
         <section className="ares-settings-entity-panel ares-search-bulk-bar">
           <div className="ares-inline space-between">
             <span>
@@ -174,8 +220,8 @@ export function Ricerca({
               <button type="button" className="ares-btn ghost" onClick={clearSelection}>
                 Deseleziona tutto
               </button>
-              <button type="button" className="ares-btn danger" onClick={eliminaSelezionati}>
-                Elimina selezionati…
+              <button type="button" className="ares-btn danger" onClick={confermaCancella}>
+                Cancella
               </button>
             </div>
           </div>
@@ -184,23 +230,29 @@ export function Ricerca({
 
       <section className="ares-settings-entity-panel">
         <h2>Ultimi 20 chiusi</h2>
-        <p className="ares-muted">
-          Puoi selezionare più righe (come nei risultati di ricerca) e usare «Elimina
-          selezionati» sopra.
-        </p>
+        {showBulkUi ? (
+          <p className="ares-muted">
+            Seleziona le righe con le checkbox; quando hai una selezione compare il riepilogo
+            con «Cancella» per confermare.
+          </p>
+        ) : (
+          <p className="ares-muted">Clicca su un elemento per aprire il dettaglio.</p>
+        )}
         <div className="ares-search-last-grid">
           <div>
             <h3>Eventi</h3>
             <ul className="ares-search-list">
               {ultimiEventiChiusi.map((e) => (
-                <li key={e.id} className="ares-search-row">
-                  <label className="ares-search-check">
-                    <input
-                      type="checkbox"
-                      checked={selEv.has(e.id)}
-                      onChange={() => setSelEv((p) => toggleInSet(p, e.id))}
-                    />
-                  </label>
+                <li key={e.id} className={showBulkUi ? 'ares-search-row' : undefined}>
+                  {showBulkUi && (
+                    <label className="ares-search-check">
+                      <input
+                        type="checkbox"
+                        checked={selEv.has(e.id)}
+                        onChange={() => setSelEv((p) => toggleInSet(p, e.id))}
+                      />
+                    </label>
+                  )}
                   <button
                     type="button"
                     className="ares-link-mission"
@@ -216,14 +268,16 @@ export function Ricerca({
             <h3>Missioni</h3>
             <ul className="ares-search-list">
               {ultimeMissioniChiuse.map((m) => (
-                <li key={m.id} className="ares-search-row">
-                  <label className="ares-search-check">
-                    <input
-                      type="checkbox"
-                      checked={selMi.has(m.id)}
-                      onChange={() => setSelMi((p) => toggleInSet(p, m.id))}
-                    />
-                  </label>
+                <li key={m.id} className={showBulkUi ? 'ares-search-row' : undefined}>
+                  {showBulkUi && (
+                    <label className="ares-search-check">
+                      <input
+                        type="checkbox"
+                        checked={selMi.has(m.id)}
+                        onChange={() => setSelMi((p) => toggleInSet(p, m.id))}
+                      />
+                    </label>
+                  )}
                   <button
                     type="button"
                     className="ares-link-mission"
@@ -239,14 +293,16 @@ export function Ricerca({
             <h3>Pazienti</h3>
             <ul className="ares-search-list">
               {ultimiPazientiChiusi.map((p) => (
-                <li key={p.id} className="ares-search-row">
-                  <label className="ares-search-check">
-                    <input
-                      type="checkbox"
-                      checked={selPa.has(p.id)}
-                      onChange={() => setSelPa((s) => toggleInSet(s, p.id))}
-                    />
-                  </label>
+                <li key={p.id} className={showBulkUi ? 'ares-search-row' : undefined}>
+                  {showBulkUi && (
+                    <label className="ares-search-check">
+                      <input
+                        type="checkbox"
+                        checked={selPa.has(p.id)}
+                        onChange={() => setSelPa((s) => toggleInSet(s, p.id))}
+                      />
+                    </label>
+                  )}
                   <button
                     type="button"
                     className="ares-link-mission"
@@ -296,30 +352,34 @@ export function Ricerca({
         <section className="ares-settings-entity-panel">
           <div className="ares-inline space-between">
             <h2>Eventi ({risEventi.length})</h2>
-            <button
-              type="button"
-              className="ares-btn small secondary"
-              onClick={() =>
-                setSelEv((p) => {
-                  const n = new Set(p)
-                  for (const e of risEventi) n.add(e.id)
-                  return n
-                })
-              }
-            >
-              Seleziona tutti (questa lista)
-            </button>
+            {showBulkUi && (
+              <button
+                type="button"
+                className="ares-btn small secondary"
+                onClick={() =>
+                  setSelEv((p) => {
+                    const n = new Set(p)
+                    for (const e of risEventi) n.add(e.id)
+                    return n
+                  })
+                }
+              >
+                Seleziona tutti (questa lista)
+              </button>
+            )}
           </div>
           <ul className="ares-search-list">
             {risEventi.map((e) => (
-              <li key={e.id} className="ares-search-row">
-                <label className="ares-search-check">
-                  <input
-                    type="checkbox"
-                    checked={selEv.has(e.id)}
-                    onChange={() => setSelEv((p) => toggleInSet(p, e.id))}
-                  />
-                </label>
+              <li key={e.id} className={showBulkUi ? 'ares-search-row' : undefined}>
+                {showBulkUi && (
+                  <label className="ares-search-check">
+                    <input
+                      type="checkbox"
+                      checked={selEv.has(e.id)}
+                      onChange={() => setSelEv((p) => toggleInSet(p, e.id))}
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   className="ares-link-mission"
@@ -338,30 +398,34 @@ export function Ricerca({
         <section className="ares-settings-entity-panel">
           <div className="ares-inline space-between">
             <h2>Missioni ({risMissioni.length})</h2>
-            <button
-              type="button"
-              className="ares-btn small secondary"
-              onClick={() =>
-                setSelMi((p) => {
-                  const n = new Set(p)
-                  for (const m of risMissioni) n.add(m.id)
-                  return n
-                })
-              }
-            >
-              Seleziona tutti (questa lista)
-            </button>
+            {showBulkUi && (
+              <button
+                type="button"
+                className="ares-btn small secondary"
+                onClick={() =>
+                  setSelMi((p) => {
+                    const n = new Set(p)
+                    for (const m of risMissioni) n.add(m.id)
+                    return n
+                  })
+                }
+              >
+                Seleziona tutti (questa lista)
+              </button>
+            )}
           </div>
           <ul className="ares-search-list">
             {risMissioni.map((m) => (
-              <li key={m.id} className="ares-search-row">
-                <label className="ares-search-check">
-                  <input
-                    type="checkbox"
-                    checked={selMi.has(m.id)}
-                    onChange={() => setSelMi((p) => toggleInSet(p, m.id))}
-                  />
-                </label>
+              <li key={m.id} className={showBulkUi ? 'ares-search-row' : undefined}>
+                {showBulkUi && (
+                  <label className="ares-search-check">
+                    <input
+                      type="checkbox"
+                      checked={selMi.has(m.id)}
+                      onChange={() => setSelMi((p) => toggleInSet(p, m.id))}
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   className="ares-link-mission"
@@ -380,30 +444,34 @@ export function Ricerca({
         <section className="ares-settings-entity-panel">
           <div className="ares-inline space-between">
             <h2>Pazienti ({risPazienti.length})</h2>
-            <button
-              type="button"
-              className="ares-btn small secondary"
-              onClick={() =>
-                setSelPa((p) => {
-                  const n = new Set(p)
-                  for (const x of risPazienti) n.add(x.id)
-                  return n
-                })
-              }
-            >
-              Seleziona tutti (questa lista)
-            </button>
+            {showBulkUi && (
+              <button
+                type="button"
+                className="ares-btn small secondary"
+                onClick={() =>
+                  setSelPa((p) => {
+                    const n = new Set(p)
+                    for (const x of risPazienti) n.add(x.id)
+                    return n
+                  })
+                }
+              >
+                Seleziona tutti (questa lista)
+              </button>
+            )}
           </div>
           <ul className="ares-search-list">
             {risPazienti.map((p) => (
-              <li key={p.id} className="ares-search-row">
-                <label className="ares-search-check">
-                  <input
-                    type="checkbox"
-                    checked={selPa.has(p.id)}
-                    onChange={() => setSelPa((s) => toggleInSet(s, p.id))}
-                  />
-                </label>
+              <li key={p.id} className={showBulkUi ? 'ares-search-row' : undefined}>
+                {showBulkUi && (
+                  <label className="ares-search-check">
+                    <input
+                      type="checkbox"
+                      checked={selPa.has(p.id)}
+                      onChange={() => setSelPa((s) => toggleInSet(s, p.id))}
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   className="ares-link-mission"

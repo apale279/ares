@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthContext'
 import { AresBootstrap } from './components/AresBootstrap'
 import { applyStoredFontStep } from './utils/fontScale'
 import './index.css'
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AresBootstrap>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </AresBootstrap>
     </BrowserRouter>
   </StrictMode>,
