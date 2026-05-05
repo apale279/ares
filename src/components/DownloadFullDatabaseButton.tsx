@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
 import { buildAresDatabaseExportZip } from '../utils/aresFullExportZip'
-import { isAdminUser } from '../utils/isAdminUser'
+import { hasFullAppPrivileges } from '../utils/isAdminUser'
 
 export function DownloadFullDatabaseButton() {
   const { session } = useAuth()
   const impostazioni = useAresStore((s) => s.impostazioni)
   const [busy, setBusy] = useState(false)
 
-  if (!isAdminUser(impostazioni, session?.userId)) return null
+  if (!hasFullAppPrivileges(impostazioni, session?.userId)) return null
 
   const run = async () => {
     setBusy(true)

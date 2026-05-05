@@ -196,6 +196,7 @@ export function migrateImpostazioni(
     mediciPma: asStringArray(raw?.mediciPma, DEFAULT_IMPOSTAZIONI.mediciPma),
     rankUtente,
     utenti,
+    modalitaSviluppo: raw?.modalitaSviluppo === true,
   }
 }
 

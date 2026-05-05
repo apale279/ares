@@ -27,6 +27,8 @@ import {
   onSyncUpdate,
 } from './store/supabasePersistStorage'
 import type { AppRouteKey } from './types'
+import { appVersionNavLabel } from './utils/appVersionLabel'
+import { firstAllowedRoutePath, routeAllowedForUser } from './utils/routeAccess'
 import './ares.css'
 
 const ROUTES: { key: AppRouteKey; label: string; to: string }[] = [
@@ -55,11 +57,18 @@ function GlobalModals() {
 
 function AppShellRoutes() {
   const navigate = useNavigate()
-  const firstAllowedPath = useMemo(() => '/dashboard', [])
+  const impostazioni = useAresStore((s) => s.impostazioni)
+  const { session, logout } = useAuth()
+  const userId = session?.userId
+
+  const firstAllowedPath = useMemo(
+    () => firstAllowedRoutePath(impostazioni, userId),
+    [impostazioni, userId],
+  )
+
   const [syncBusy, setSyncBusy] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncAt())
   const syncEnabled = isSupabaseConfigured()
-  const { logout } = useAuth()
 
   useEffect(() => onSyncUpdate((iso) => setLastSync(iso)), [])
 
@@ -67,13 +76,19 @@ function AppShellRoutes() {
     ? `SYNC ${new Date(lastSync).toLocaleString('it-IT')}`
     : 'SYNC --'
 
-  const canRoute = (_k: AppRouteKey): boolean => true
+  const canRoute = useMemo(
+    () => (k: AppRouteKey) => routeAllowedForUser(impostazioni, userId, k),
+    [impostazioni, userId],
+  )
 
   return (
     <div className="ares-app">
       <nav className="ares-nav ares-nav--triple">
         <div className="ares-nav-left">
           <PersistenceStatusDot />
+          <span className="ares-nav-version" title={`ARES ${appVersionNavLabel()}`}>
+            {appVersionNavLabel()}
+          </span>
         </div>
         <div className="ares-nav-center">
           {ROUTES.filter((r) => canRoute(r.key)).map((r) => (
@@ -174,8 +189,9 @@ function AppShellRoutes() {
 
 export default function App() {
   const { session } = useAuth()
+  const modalitaSviluppo = useAresStore((s) => s.impostazioni.modalitaSviluppo === true)
 
-  if (!session) {
+  if (!session && !modalitaSviluppo) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />

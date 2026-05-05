@@ -4,7 +4,7 @@ import type { EsitoPaziente } from '../types'
 import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
 import { LABEL_STATO_MISSIONE } from '../constants'
-import { isAdminUser } from '../utils/isAdminUser'
+import { hasFullAppPrivileges } from '../utils/isAdminUser'
 
 function norm(s: string): string {
   return s.toLowerCase().trim()
@@ -26,7 +26,7 @@ export function Ricerca({
   const { session } = useAuth()
   const impostazioni = useAresStore((s) => s.impostazioni)
   const isAdmin = useMemo(
-    () => isAdminUser(impostazioni, session?.userId),
+    () => hasFullAppPrivileges(impostazioni, session?.userId),
     [impostazioni, session?.userId],
   )
 

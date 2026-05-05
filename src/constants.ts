@@ -36,6 +36,7 @@ export function prossimoStatoMissione(stato: StatoMissione): StatoMissione {
 }
 
 export const DEFAULT_IMPOSTAZIONI: Impostazioni = {
+  modalitaSviluppo: false,
   tipiMezzo: ['MSB', 'CMR', 'MSA', '118', 'automedica'],
   ospedali: ['Ospedale A', 'Ospedale B', 'PS pediatrico'],
   pma: ['PMA Centrale', 'PMA Stazione', 'PMA Ovest'],

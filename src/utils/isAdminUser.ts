@@ -14,3 +14,12 @@ export function isAdminUser(
   if (rank.nome.trim().toUpperCase() === 'ADMIN') return true
   return false
 }
+
+/** Admin di rank oppure modalità sviluppo attiva (accesso completo alle funzioni riservate). */
+export function hasFullAppPrivileges(
+  imp: Impostazioni,
+  userId: string | null | undefined,
+): boolean {
+  if (imp.modalitaSviluppo === true) return true
+  return isAdminUser(imp, userId)
+}

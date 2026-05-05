@@ -6,7 +6,9 @@ import { DownloadFullDatabaseButton } from '../components/DownloadFullDatabaseBu
 import { ImportMezziExcelButton } from '../components/ImportMezziExcelButton'
 import { MezzoFormModal } from '../components/MezzoFormModal'
 import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchichePanel'
+import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
+import { isAdminUser } from '../utils/isAdminUser'
 import { ImpostazioniPmaTab } from './ImpostazioniPmaTab'
 
 const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
@@ -57,6 +59,7 @@ function ImpostazioniTextPanel({
 }
 
 export function Settings() {
+  const { session } = useAuth()
   const impostazioni = useAresStore((s) => s.impostazioni)
   const setImpostazioni = useAresStore((s) => s.setImpostazioni)
   const mezzi = useAresStore((s) => s.mezzi)
@@ -79,6 +82,10 @@ export function Settings() {
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
   const ranks: RankUtente[] = impostazioni.rankUtente ?? []
   const utenti: Utente[] = impostazioni.utenti ?? []
+
+  const showModalitaSviluppoRow =
+    isAdminUser(impostazioni, session?.userId) ||
+    impostazioni.modalitaSviluppo === true
 
   const toggleRankRoute = (route: AppRouteKey) => {
     setRankRoutes((prev) =>
@@ -134,6 +141,26 @@ export function Settings() {
       {tab === 'generali' && (
         <>
       <DownloadFullDatabaseButton />
+      {showModalitaSviluppoRow && (
+        <section className="ares-settings-entity-panel">
+          <h2>Modalità sviluppo</h2>
+          <p className="ares-muted">
+            Solo per prove in ambiente controllato. Se attiva, non viene richiesto il login
+            e tutte le voci di menu restano disponibili (nessun filtro per rank). Le
+            funzioni riservate agli amministratori restano accessibili.
+          </p>
+          <label className="ares-check">
+            <input
+              type="checkbox"
+              checked={impostazioni.modalitaSviluppo === true}
+              onChange={(e) =>
+                setImpostazioni({ modalitaSviluppo: e.target.checked })
+              }
+            />
+            Modalità sviluppo attiva
+          </label>
+        </section>
+      )}
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Evento — classificazione e contesto</h1>
         <div className="ares-settings-entity-grid">

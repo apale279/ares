@@ -256,6 +256,11 @@ export interface ValutazionePMA {
 export type Valutazione = ValutazioneMSB | ValutazioneMSA | ValutazionePMA
 
 export interface Impostazioni {
+  /**
+   * Solo modificabile da admin in Impostazioni. Se true: nessun login obbligatorio
+   * e accesso a tutte le viste (come rank admin). Persistito con lo stato app.
+   */
+  modalitaSviluppo?: boolean
   tipiMezzo: string[]
   ospedali: string[]
   /** Nomi PMA (sincronizzati con postazioniPma; retrocompatibilità) */
