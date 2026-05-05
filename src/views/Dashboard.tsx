@@ -2,7 +2,11 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { DraggablePanel } from '../components/DraggablePanel'
 import { EventsMap } from '../components/EventsMap'
 import { CreateEventModal } from '../components/CreateEventModal'
-import { CODICE_EVENTO_COLOR, LABEL_STATO_MISSIONE } from '../constants'
+import {
+  CODICE_EVENTO_COLOR,
+  LABEL_STATO_MISSIONE,
+  prossimoStatoMissione,
+} from '../constants'
 import { useAresStore } from '../store/aresStore'
 import type { Mezzo, Nota } from '../types'
 import { shortAddress } from '../utils/address'
@@ -58,7 +62,12 @@ export function Dashboard() {
   const updateNota = useAresStore((s) => s.updateNota)
 
   const conteggioEventiPerCodice = useMemo(() => {
-    const out = { VERDE: 0, GIALLO: 0, ROSSO: 0 }
+    const out: Record<string, number> = {
+      VERDE: 0,
+      'VERDE/GIALLO': 0,
+      GIALLO: 0,
+      ROSSO: 0,
+    }
     for (const e of eventiAperti) out[e.codice] += 1
     return out
   }, [eventiAperti])
@@ -253,6 +262,7 @@ export function Dashboard() {
 
       <div className="ares-dashboard-counters">
         <span>Eventi VERDE: {conteggioEventiPerCodice.VERDE}</span>
+        <span>Eventi VERDE/GIALLO: {conteggioEventiPerCodice['VERDE/GIALLO']}</span>
         <span>Eventi GIALLO: {conteggioEventiPerCodice.GIALLO}</span>
         <span>Eventi ROSSO: {conteggioEventiPerCodice.ROSSO}</span>
         <span>Missioni attive: {missioniInCorso.length}</span>
@@ -399,6 +409,8 @@ export function Dashboard() {
                   const warn = m.stato === 'ALLERTARE'
                   const codeColor = CODICE_EVENTO_COLOR[m.codice] ?? '#64748b'
                   const lastUpdate = m.statoHistory[m.statoHistory.length - 1]?.at ?? m.createdAt
+                  const nextState = prossimoStatoMissione(m.stato)
+                  const canAdvance = nextState !== m.stato
                   return (
                     <tr
                       key={m.id}
@@ -474,8 +486,9 @@ export function Dashboard() {
                           type="button"
                           className="ares-btn small primary"
                           onClick={() => avanzaMissione(m.id)}
+                          disabled={!canAdvance}
                         >
-                          Avanza
+                          {canAdvance ? LABEL_STATO_MISSIONE[nextState] : 'Completata'}
                         </button>
                       </td>
                     </tr>

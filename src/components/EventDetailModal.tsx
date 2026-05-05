@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
 import type { CodiceEvento, TipoEvento } from '../types'
-import { CODICE_EVENTO_COLOR, LABEL_STATO_MISSIONE } from '../constants'
+import {
+  CODICE_EVENTO_COLOR,
+  LABEL_STATO_MISSIONE,
+  prossimoStatoMissione,
+} from '../constants'
 import { dettagliPerTipo, useAresStore } from '../store/aresStore'
 import { formatDataOra } from '../utils/format'
 import { geocodeIndirizzo } from '../utils/geocode'
@@ -293,7 +297,7 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                     })
                   }
                 >
-                  {(['VERDE', 'GIALLO', 'ROSSO'] as CodiceEvento[]).map((c) => (
+                  {(['VERDE', 'VERDE/GIALLO', 'GIALLO', 'ROSSO'] as CodiceEvento[]).map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -400,6 +404,8 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
             <ul className="ares-list">
               {missioniEv.map((m) => {
                 const mz = mezzi.find((x) => x.id === m.mezzoId)
+                const nextState = prossimoStatoMissione(m.stato)
+                const canAdvance = nextState !== m.stato
                 return (
                   <li key={m.id} className="ares-card">
                     <div className="ares-card-row">
@@ -418,8 +424,9 @@ export function EventDetailModal({ onClose }: { onClose: () => void }) {
                             type="button"
                             className="ares-btn small"
                             onClick={() => avanzaMissione(m.id)}
+                            disabled={!canAdvance}
                           >
-                            Avanza stato
+                            {canAdvance ? LABEL_STATO_MISSIONE[nextState] : 'Completata'}
                           </button>
                           {m.stato !== 'FINE_MISSIONE' && (
                             <button

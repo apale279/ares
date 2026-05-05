@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { DEFAULT_IMPOSTAZIONI, MISSION_STATE_ORDER } from '../constants'
+import { DEFAULT_IMPOSTAZIONI, prossimoStatoMissione } from '../constants'
 import {
   computeDefaultLayout,
   LAYOUT_VERSION,
@@ -48,12 +48,6 @@ import {
 
 function nowIso(): string {
   return new Date().toISOString()
-}
-
-function prossimoStatoMissione(s: StatoMissione): StatoMissione {
-  const i = MISSION_STATE_ORDER.indexOf(s)
-  if (i < 0 || i >= MISSION_STATE_ORDER.length - 1) return s
-  return MISSION_STATE_ORDER[i + 1]!
 }
 
 export interface AresState {

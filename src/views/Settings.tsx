@@ -11,6 +11,7 @@ const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
   { key: 'ricerca', label: 'Ricerca' },
   { key: 'impostazioni', label: 'Impostazioni' },
   { key: 'pma', label: 'PMA' },
+  { key: 'pma_modulo', label: 'Modulo PMA' },
   { key: 'mezzo', label: 'Vista mezzo' },
 ]
 
@@ -67,6 +68,9 @@ export function Settings() {
   const [utenteNome, setUtenteNome] = useState('')
   const [utentePassword, setUtentePassword] = useState('')
   const [utenteRankId, setUtenteRankId] = useState('')
+  const [tab, setTab] = useState<'generali' | 'mezzi' | 'valutazioni' | 'utenti'>(
+    'generali',
+  )
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
@@ -86,7 +90,39 @@ export function Settings() {
         Pannelli separati per entità. Gli elenchi si modificano con testo su più
         righe (una voce per riga). I dati vengono persistiti su cloud quando configurato.
       </p>
+      <div className="ares-inline">
+        <button
+          type="button"
+          className={`ares-btn secondary${tab === 'generali' ? ' active' : ''}`}
+          onClick={() => setTab('generali')}
+        >
+          GENERALI
+        </button>
+        <button
+          type="button"
+          className={`ares-btn secondary${tab === 'mezzi' ? ' active' : ''}`}
+          onClick={() => setTab('mezzi')}
+        >
+          MEZZI
+        </button>
+        <button
+          type="button"
+          className={`ares-btn secondary${tab === 'valutazioni' ? ' active' : ''}`}
+          onClick={() => setTab('valutazioni')}
+        >
+          VALUTAZIONI
+        </button>
+        <button
+          type="button"
+          className={`ares-btn secondary${tab === 'utenti' ? ' active' : ''}`}
+          onClick={() => setTab('utenti')}
+        >
+          UTENTI
+        </button>
+      </div>
 
+      {tab === 'generali' && (
+        <>
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Evento — dettagli</h1>
         <div className="ares-settings-entity-grid">
@@ -110,7 +146,11 @@ export function Settings() {
           />
         </div>
       </section>
+        </>
+      )}
 
+      {tab === 'mezzi' && (
+        <>
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Mezzo — tipi</h1>
         <ImpostazioniTextPanel
@@ -120,7 +160,11 @@ export function Settings() {
           onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
         />
       </section>
+      </>
+      )}
 
+      {tab === 'generali' && (
+        <>
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Paziente — ospedali e PMA</h1>
         <p className="ares-muted">
@@ -147,7 +191,11 @@ export function Settings() {
           />
         </div>
       </section>
+      </>
+      )}
 
+      {tab === 'valutazioni' && (
+        <>
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Valutazioni</h1>
         <p className="ares-muted">
@@ -181,7 +229,11 @@ export function Settings() {
           />
         </div>
       </section>
+      </>
+      )}
 
+      {tab === 'utenti' && (
+        <>
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Utenti e Rank</h1>
         <div className="ares-settings-entity-grid">
@@ -416,7 +468,11 @@ export function Settings() {
           </section>
         </div>
       </section>
+      </>
+      )}
 
+      {tab === 'mezzi' && (
+        <>
       <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Mezzi — anagrafica</h1>
         <p className="ares-muted">
@@ -450,6 +506,8 @@ export function Settings() {
           ))}
         </ul>
       </section>
+      </>
+      )}
 
       <div className="ares-inline">
         <button

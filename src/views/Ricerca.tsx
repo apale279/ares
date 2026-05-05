@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { equipaggioToPlainText } from '../utils/equipaggioPrint'
 import type { EsitoPaziente } from '../types'
 import { useAresStore } from '../store/aresStore'
+import { LABEL_STATO_MISSIONE } from '../constants'
 
 function norm(s: string): string {
   return s.toLowerCase().trim()
@@ -32,11 +33,12 @@ export function Ricerca({
   const [mi, setMi] = useState(true)
   const [pa, setPa] = useState(true)
   const [eq, setEq] = useState(true)
+  const [didSearch, setDidSearch] = useState(false)
 
   const nq = norm(q)
 
   const risEventi = useMemo(() => {
-    if (!nq || !ev) return []
+    if (!didSearch || !nq || !ev) return []
     return eventi.filter(
       (e) =>
         norm(e.id).includes(nq) ||
@@ -47,14 +49,14 @@ export function Ricerca({
   }, [eventi, nq, ev])
 
   const risMissioni = useMemo(() => {
-    if (!nq || !mi) return []
+    if (!didSearch || !nq || !mi) return []
     return missioni.filter(
       (m) => norm(m.id).includes(nq) || norm(m.eventoId).includes(nq),
     )
   }, [missioni, nq, mi])
 
   const risPazienti = useMemo(() => {
-    if (!nq || !pa) return []
+    if (!didSearch || !nq || !pa) return []
     return pazienti.filter(
       (p) =>
         norm(p.id).includes(nq) ||
@@ -66,11 +68,38 @@ export function Ricerca({
   }, [pazienti, nq, pa])
 
   const risEquip = useMemo(() => {
-    if (!nq || !eq) return []
+    if (!didSearch || !nq || !eq) return []
     return mezzi.filter((m) =>
       norm(equipaggioToPlainText(m.equipaggio)).includes(nq),
     )
   }, [mezzi, nq, eq])
+
+  const ultimiEventiChiusi = useMemo(
+    () =>
+      eventi
+        .filter((e) => e.stato === 'CHIUSO')
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 20),
+    [eventi],
+  )
+  const ultimeMissioniChiuse = useMemo(
+    () =>
+      missioni
+        .filter((m) => m.stato === 'FINE_MISSIONE')
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 20),
+    [missioni],
+  )
+  const ultimiPazientiChiusi = useMemo(
+    () =>
+      pazienti
+        .filter((p) => p.trasportoCompletatoAt != null)
+        .sort((a, b) =>
+          (b.trasportoCompletatoAt ?? '').localeCompare(a.trasportoCompletatoAt ?? ''),
+        )
+        .slice(0, 20),
+    [pazienti],
+  )
 
   return (
     <div className="ares-settings">
@@ -78,6 +107,59 @@ export function Ricerca({
       <p className="ares-muted">
         Filtra per testo libero. Seleziona le categorie da includere.
       </p>
+      <section className="ares-settings-entity-panel">
+        <h2>Ultimi 20 chiusi</h2>
+        <div className="ares-search-last-grid">
+          <div>
+            <h3>Eventi</h3>
+            <ul className="ares-search-list">
+              {ultimiEventiChiusi.map((e) => (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    className="ares-link-mission"
+                    onClick={() => apri(() => openModalEvento(e.id))}
+                  >
+                    {e.id}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3>Missioni</h3>
+            <ul className="ares-search-list">
+              {ultimeMissioniChiuse.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    className="ares-link-mission"
+                    onClick={() => apri(() => openModalMissione(m.id))}
+                  >
+                    {m.id} · {LABEL_STATO_MISSIONE[m.stato]}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3>Pazienti</h3>
+            <ul className="ares-search-list">
+              {ultimiPazientiChiusi.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className="ares-link-mission"
+                    onClick={() => apri(() => openModalPaziente(p.id))}
+                  >
+                    {p.id} · {[p.nome, p.cognome].filter(Boolean).join(' ') || '—'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
       <div className="ares-form-grid tight">
         <label className="full">
           Testo
@@ -87,6 +169,15 @@ export function Ricerca({
             placeholder="ID, indirizzo, nome, …"
           />
         </label>
+        <div className="ares-inline">
+          <button
+            type="button"
+            className="ares-btn primary"
+            onClick={() => setDidSearch(true)}
+          >
+            Cerca
+          </button>
+        </div>
         <label className="ares-check">
           <input type="checkbox" checked={ev} onChange={(e) => setEv(e.target.checked)} />
           Eventi
@@ -188,7 +279,8 @@ export function Ricerca({
         </section>
       )}
 
-      {nq &&
+      {didSearch &&
+        nq &&
         risEventi.length === 0 &&
         risMissioni.length === 0 &&
         risPazienti.length === 0 &&

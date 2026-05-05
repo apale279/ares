@@ -12,6 +12,10 @@ export function PmaVista() {
   const [selectedPazienteId, setSelectedPazienteId] = useState<string | null>(null)
 
   const listaPma = impostazioni.pma.length > 0 ? impostazioni.pma : []
+  const codiceClass = (codice: string): string => {
+    if (codice === 'VERDE/GIALLO') return 'ares-codice-giallo'
+    return `ares-codice-${codice.toLowerCase()}`
+  }
 
   const inPma = useMemo(() => {
     if (!pmaSel) return []
@@ -79,7 +83,7 @@ export function PmaVista() {
                 <li key={p.id}>
                   <button
                     type="button"
-                    className={`ares-diario-side-item ares-pma-patient-chip ares-codice-${p.codiceTrasporto.toLowerCase()}`}
+                    className={`ares-diario-side-item ares-pma-patient-chip ${codiceClass(p.codiceTrasporto)}`}
                     onClick={() => setSelectedPazienteId(p.id)}
                   >
                     <strong>{p.id}</strong> — {[p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza anagrafica'}

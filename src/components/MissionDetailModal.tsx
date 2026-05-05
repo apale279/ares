@@ -1,4 +1,8 @@
-import { LABEL_STATO_MISSIONE } from '../constants'
+import {
+  LABEL_STATO_MISSIONE,
+  MISSION_STATE_ORDER,
+  prossimoStatoMissione,
+} from '../constants'
 import { useAresStore } from '../store/aresStore'
 import { shortAddress } from '../utils/address'
 import { formatDataOra } from '../utils/format'
@@ -39,6 +43,7 @@ export function MissionDetailModal({
   const pazienti = useAresStore((s) => s.pazienti)
   const terminaMissione = useAresStore((s) => s.terminaMissione)
   const avanzaMissione = useAresStore((s) => s.avanzaMissione)
+  const updateMissioneStato = useAresStore((s) => s.updateMissioneStato)
   const addTrattaMissione = useAresStore((s) => s.addTrattaMissione)
   const updateTrattaMissione = useAresStore((s) => s.updateTrattaMissione)
   const deleteTrattaMissione = useAresStore((s) => s.deleteTrattaMissione)
@@ -67,6 +72,13 @@ export function MissionDetailModal({
       trattaId: t.id,
     })),
   ].sort((a, b) => a.at.localeCompare(b.at))
+  const statoTimestamp = new Map<string, string>()
+  for (const h of missione.statoHistory) {
+    statoTimestamp.set(h.stato, h.at)
+  }
+  const currentStateIndex = MISSION_STATE_ORDER.indexOf(missione.stato)
+  const nextState = prossimoStatoMissione(missione.stato)
+  const canAdvance = nextState !== missione.stato
 
   return (
     <div
@@ -120,6 +132,31 @@ export function MissionDetailModal({
           <p>
             Stato attuale: <strong>{LABEL_STATO_MISSIONE[missione.stato]}</strong>
           </p>
+          <h3>Stati missione</h3>
+          <ul className="ares-list-compact">
+            {MISSION_STATE_ORDER.map((stato) => {
+              const ts = statoTimestamp.get(stato)
+              const idx = MISSION_STATE_ORDER.indexOf(stato)
+              const canSet = idx > currentStateIndex
+              return (
+                <li key={stato} className="ares-inline">
+                  <strong>{LABEL_STATO_MISSIONE[stato]}</strong>
+                  <span className="ares-muted">
+                    {ts ? ` — ${formatDataOra(ts)}` : ' — non impostato'}
+                  </span>
+                  {canSet && (
+                    <button
+                      type="button"
+                      className="ares-btn small secondary"
+                      onClick={() => updateMissioneStato(missione.id, stato)}
+                    >
+                      Imposta
+                    </button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
 
           <h3>Equipaggio (alla creazione missione)</h3>
           <table className="ares-table ares-table-compact">
@@ -244,8 +281,9 @@ export function MissionDetailModal({
                   type="button"
                   className="ares-btn secondary"
                   onClick={() => avanzaMissione(missione.id)}
+                  disabled={!canAdvance}
                 >
-                  Avanza stato
+                  {canAdvance ? LABEL_STATO_MISSIONE[nextState] : 'Completata'}
                 </button>
                 <button
                   type="button"

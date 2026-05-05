@@ -24,8 +24,15 @@ export const LABEL_STATO_MISSIONE: Record<StatoMissione, string> = {
 
 export const CODICE_EVENTO_COLOR: Record<string, string> = {
   VERDE: '#22c55e',
+  'VERDE/GIALLO': '#d4c11f',
   GIALLO: '#eab308',
   ROSSO: '#ef4444',
+}
+
+export function prossimoStatoMissione(stato: StatoMissione): StatoMissione {
+  const i = MISSION_STATE_ORDER.indexOf(stato)
+  if (i < 0 || i >= MISSION_STATE_ORDER.length - 1) return stato
+  return MISSION_STATE_ORDER[i + 1]!
 }
 
 export const DEFAULT_IMPOSTAZIONI: Impostazioni = {
@@ -61,7 +68,15 @@ export const DEFAULT_IMPOSTAZIONI: Impostazioni = {
     {
       id: 'rank_admin',
       nome: 'ADMIN',
-      routeKeys: ['dashboard', 'diario', 'ricerca', 'impostazioni', 'pma', 'mezzo'],
+      routeKeys: [
+        'dashboard',
+        'diario',
+        'ricerca',
+        'impostazioni',
+        'pma',
+        'pma_modulo',
+        'mezzo',
+      ],
     },
   ],
   utenti: [

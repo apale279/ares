@@ -1108,6 +1108,18 @@ textarea {
   margin-bottom: 8px;
 }
 
+.ares-search-last-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .ares-search-last-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ares-pre-small {
   margin: 6px 0 0;
   padding: 8px 10px;

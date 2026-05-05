@@ -1,10 +1,11 @@
-export type CodiceEvento = 'VERDE' | 'GIALLO' | 'ROSSO'
+export type CodiceEvento = 'VERDE' | 'VERDE/GIALLO' | 'GIALLO' | 'ROSSO'
 export type AppRouteKey =
   | 'dashboard'
   | 'diario'
   | 'ricerca'
   | 'impostazioni'
   | 'pma'
+  | 'pma_modulo'
   | 'mezzo'
 
 export type TipoEvento = 'MEDICO' | 'TRAUMA' | 'NON_NOTO'

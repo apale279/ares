@@ -39,6 +39,8 @@ const bot = new Telegraf(TELEGRAM_BOT_TOKEN)
 
 /** @type {Map<string, any>} */
 const missionCache = new Map()
+/** @type {Map<string, string>} */
+const missionDispatchTokenCache = new Map()
 /** @type {Map<string, any>} */
 const noteCache = new Map()
 
@@ -195,6 +197,7 @@ function escapeHtml(value) {
 
 function codiceDot(codice) {
   if (codice === 'ROSSO') return '🔴'
+  if (codice === 'VERDE/GIALLO') return '🟡'
   if (codice === 'GIALLO') return '🟡'
   return '🟢'
 }
@@ -255,9 +258,21 @@ function nextMissionState(stato) {
   return MISSION_STATE_ORDER[idx + 1]
 }
 
-function buildAdvanceKeyboard(missioneId) {
+function buildAdvanceKeyboard(missioneId, currentState) {
+  const labelMap = {
+    ALLERTARE: 'Allertato',
+    ALLERTATO: 'Partito',
+    PARTITO: 'In posto',
+    IN_POSTO: 'Diretto in H',
+    DIRETTO_IN_H: 'Arrivato in H',
+    ARRIVATO_IN_H: 'Rientro',
+    RIENTRO: 'Fine missione',
+    FINE_MISSIONE: 'Completata',
+  }
+  const next = nextMissionState(currentState)
+  const label = labelMap[next] ?? 'Avanza stato'
   return Markup.inlineKeyboard([
-    [Markup.button.callback('Avanza stato', `ADVANCE:${missioneId}`)],
+    [Markup.button.callback(label, `ADVANCE:${missioneId}`)],
   ])
 }
 
@@ -339,11 +354,14 @@ async function notifyRequestedMissions(nextState) {
     missionCache.set(m.id, m)
     if (!m.telegramDispatchRequestedAt) continue
     if (existing?.telegramDispatchRequestedAt === m.telegramDispatchRequestedAt) continue
+    if (missionDispatchTokenCache.get(m.id) === m.telegramDispatchRequestedAt) continue
 
     const evento = eventi.find((e) => e.id === m.eventoId)
     const mezzo = mezzi.find((z) => z.id === m.mezzoId)
     const mezzoSigla = mezzo?.sigla ?? m.mezzoId
     const chats = await getChatsForMezzo(m.mezzoId, mezzoSigla)
+    await clearMissionDispatchRequest(m.id, m.telegramDispatchRequestedAt)
+    missionDispatchTokenCache.set(m.id, m.telegramDispatchRequestedAt)
     if (!chats.length) continue
     const text = missionMessageHtml(m, evento, mezzoSigla)
 
@@ -353,14 +371,13 @@ async function notifyRequestedMissions(nextState) {
           await bot.telegram.sendMessage(chatId, text, {
             parse_mode: 'HTML',
             disable_web_page_preview: true,
-            reply_markup: buildAdvanceKeyboard(m.id).reply_markup,
+            reply_markup: buildAdvanceKeyboard(m.id, m.stato).reply_markup,
           })
         } catch (err) {
           console.error('[Telegram notify error]', chatId, err)
         }
       }),
     )
-    await clearMissionDispatchRequest(m.id, m.telegramDispatchRequestedAt)
   }
 }
 
