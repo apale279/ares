@@ -9,6 +9,10 @@ const ROW_ID = 'default'
 const BACKUP_STORAGE_KEY = 'ares-supabase-backup'
 const SNAPSHOT_PREFIX = 'snapshot_'
 const SNAPSHOT_KEEP_COUNT = 50
+const MANUAL_BACKUP_PREFIX = 'manual_backup_'
+const MANUAL_BACKUP_KEEP_COUNT = 5
+const AUDIT_PREFIX = 'audit_'
+const AUDIT_KEEP_COUNT = 500
 const SESSION_KEY = 'ares_session_v1'
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -117,10 +121,26 @@ function getCurrentUserIdForSnapshot(): string {
   }
 }
 
+function compactTs(iso: string): string {
+  return iso.replace(/[-:.TZ]/g, '').slice(0, 17)
+}
+
 function buildSnapshotId(syncIso: string, userId: string): string {
-  const compact = syncIso.replace(/[-:.TZ]/g, '').slice(0, 17)
+  const compact = compactTs(syncIso)
   const suffix = Math.random().toString(36).slice(2, 8)
   return `${SNAPSHOT_PREFIX}${userId}_${compact}_${suffix}`
+}
+
+function buildManualBackupId(syncIso: string): string {
+  const compact = compactTs(syncIso)
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `${MANUAL_BACKUP_PREFIX}${compact}_${suffix}`
+}
+
+function buildAuditId(syncIso: string): string {
+  const compact = compactTs(syncIso)
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `${AUDIT_PREFIX}${compact}_${suffix}`
 }
 
 async function createSnapshotRow(
@@ -151,6 +171,32 @@ async function pruneSnapshots(userId: string): Promise<void> {
   await supabase.from('ares_state').delete().in('id', ids)
 }
 
+async function pruneManualBackups(): Promise<void> {
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('id, updated_at')
+    .like('id', `${MANUAL_BACKUP_PREFIX}%`)
+    .order('updated_at', { ascending: false })
+    .range(MANUAL_BACKUP_KEEP_COUNT, MANUAL_BACKUP_KEEP_COUNT + 500)
+  if (error || !data?.length) return
+  const ids = data.map((row) => row.id).filter(Boolean)
+  if (!ids.length) return
+  await supabase.from('ares_state').delete().in('id', ids)
+}
+
+async function pruneAuditLogs(): Promise<void> {
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('id, updated_at')
+    .like('id', `${AUDIT_PREFIX}%`)
+    .order('updated_at', { ascending: false })
+    .range(AUDIT_KEEP_COUNT, AUDIT_KEEP_COUNT + 500)
+  if (error || !data?.length) return
+  const ids = data.map((row) => row.id).filter(Boolean)
+  if (!ids.length) return
+  await supabase.from('ares_state').delete().in('id', ids)
+}
+
 async function archiveSnapshot(payload: unknown, syncIso: string): Promise<void> {
   try {
     const userId = getCurrentUserIdForSnapshot()
@@ -158,6 +204,44 @@ async function archiveSnapshot(payload: unknown, syncIso: string): Promise<void>
     await pruneSnapshots(userId)
   } catch (error) {
     console.warn('[Ares] Snapshot archive failed:', error)
+  }
+}
+
+type ManualBackupPayload = {
+  kind: 'manual_backup'
+  name: string
+  created_at: string
+  source_user_id: string
+  data: unknown
+}
+
+type AuditPayload = {
+  kind: 'audit_log'
+  at: string
+  user_id: string
+  action: string
+  detail: string
+}
+
+async function createAuditLog(action: string, detail: string): Promise<void> {
+  try {
+    const at = new Date().toISOString()
+    const payload: AuditPayload = {
+      kind: 'audit_log',
+      at,
+      user_id: getCurrentUserIdForSnapshot(),
+      action,
+      detail,
+    }
+    const { error } = await supabase.from('ares_state').insert({
+      id: buildAuditId(at),
+      payload,
+      updated_at: at,
+    })
+    if (error) return
+    await pruneAuditLogs()
+  } catch {
+    /* ignore */
   }
 }
 
@@ -194,6 +278,7 @@ async function upsertPayloadString(raw: string): Promise<void> {
     )
     if (error) throw error
     await archiveSnapshot(payload, syncIso)
+    await createAuditLog('state_update', 'Inizializzazione stato applicazione')
     markSynced(syncIso)
     return
   }
@@ -219,6 +304,7 @@ async function upsertPayloadString(raw: string): Promise<void> {
     throw new RemoteConflictError()
   }
   await archiveSnapshot(payload, data.updated_at)
+  await createAuditLog('state_update', 'Aggiornamento dati applicazione')
   markSynced(data.updated_at)
 }
 
@@ -342,6 +428,140 @@ export async function forceSupabaseSync(storageKey: string): Promise<void> {
     bumpPersistHealthListeners()
     throw e
   }
+}
+
+export type ManualBackupRecord = {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string | null
+  userId: string
+}
+
+export type PersistAuditRecord = {
+  id: string
+  timestamp: string
+  userId: string
+  action: string
+  detail: string
+}
+
+export async function createManualBackup(name?: string): Promise<void> {
+  if (!isSupabaseConfigured()) return
+  const remote = await readRemoteStateRow()
+  if (!remote?.payload) return
+  const createdAt = new Date().toISOString()
+  const trimmed = (name ?? '').trim()
+  const payload: ManualBackupPayload = {
+    kind: 'manual_backup',
+    name: trimmed || `Backup ${new Date(createdAt).toLocaleString('it-IT')}`,
+    created_at: createdAt,
+    source_user_id: getCurrentUserIdForSnapshot(),
+    data: remote.payload,
+  }
+  const { error } = await supabase.from('ares_state').insert({
+    id: buildManualBackupId(createdAt),
+    payload,
+    updated_at: createdAt,
+  })
+  if (error) throw error
+  await pruneManualBackups()
+  await createAuditLog('backup_create', `Creato backup manuale: ${payload.name}`)
+}
+
+export async function listManualBackups(): Promise<ManualBackupRecord[]> {
+  if (!isSupabaseConfigured()) return []
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('id, payload, updated_at')
+    .like('id', `${MANUAL_BACKUP_PREFIX}%`)
+    .order('updated_at', { ascending: false })
+    .range(0, MANUAL_BACKUP_KEEP_COUNT - 1)
+  if (error || !data) return []
+  return data
+    .map((row) => {
+      const payload = (row.payload ?? {}) as Partial<ManualBackupPayload>
+      return {
+        id: row.id as string,
+        name: String(payload.name ?? row.id),
+        createdAt: String(payload.created_at ?? row.updated_at ?? ''),
+        updatedAt: (row.updated_at as string | null) ?? null,
+        userId: String(payload.source_user_id ?? 'unknown'),
+      }
+    })
+    .filter((x) => Boolean(x.id))
+}
+
+export async function renameManualBackup(
+  backupId: string,
+  nextName: string,
+): Promise<void> {
+  if (!isSupabaseConfigured()) return
+  const trimmed = nextName.trim()
+  if (!trimmed) return
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('payload')
+    .eq('id', backupId)
+    .maybeSingle()
+  if (error) throw error
+  const current = (data?.payload ?? {}) as Partial<ManualBackupPayload>
+  const updated: ManualBackupPayload = {
+    kind: 'manual_backup',
+    name: trimmed,
+    created_at: String(current.created_at ?? new Date().toISOString()),
+    source_user_id: String(current.source_user_id ?? getCurrentUserIdForSnapshot()),
+    data: current.data ?? {},
+  }
+  const { error: upError } = await supabase
+    .from('ares_state')
+    .update({ payload: updated, updated_at: new Date().toISOString() })
+    .eq('id', backupId)
+  if (upError) throw upError
+  await createAuditLog('backup_rename', `Rinominato backup ${backupId} in "${trimmed}"`)
+}
+
+export async function restoreManualBackup(backupId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('payload')
+    .eq('id', backupId)
+    .maybeSingle()
+  if (error) throw error
+  const backup = (data?.payload ?? {}) as Partial<ManualBackupPayload>
+  const restoredPayload = backup.data
+  if (restoredPayload == null) throw new Error('Backup non valido')
+  const now = new Date().toISOString()
+  const { error: upError } = await supabase
+    .from('ares_state')
+    .update({ payload: restoredPayload, updated_at: now })
+    .eq('id', ROW_ID)
+  if (upError) throw upError
+  markSynced(now)
+  await createAuditLog('backup_restore', `Ripristinato backup ${backupId}`)
+}
+
+export async function listPersistAuditLogs(limit = 150): Promise<PersistAuditRecord[]> {
+  if (!isSupabaseConfigured()) return []
+  const safeLimit = Math.max(1, Math.min(limit, 500))
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('id, payload, updated_at')
+    .like('id', `${AUDIT_PREFIX}%`)
+    .order('updated_at', { ascending: false })
+    .range(0, safeLimit - 1)
+  if (error || !data) return []
+  return data.map((row) => {
+    const payload = (row.payload ?? {}) as Partial<AuditPayload>
+    return {
+      id: String(row.id),
+      timestamp: String(payload.at ?? row.updated_at ?? ''),
+      userId: String(payload.user_id ?? 'unknown'),
+      action: String(payload.action ?? 'unknown'),
+      detail: String(payload.detail ?? ''),
+    }
+  })
 }
 
 export function getLastSyncAt(): string | null {

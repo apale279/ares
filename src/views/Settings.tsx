@@ -15,6 +15,14 @@ import {
   ordineMezziCompleto,
 } from '../utils/ordineMezzi'
 import { ImpostazioniPmaTab } from './ImpostazioniPmaTab'
+import {
+  createManualBackup,
+  isSupabaseConfigured,
+  listManualBackups,
+  renameManualBackup,
+  restoreManualBackup,
+  type ManualBackupRecord,
+} from '../store/supabasePersistStorage'
 
 const ROUTE_OPTS: { key: AppRouteKey; label: string }[] = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -83,6 +91,10 @@ export function Settings() {
     'generali' | 'mezzi' | 'valutazioni' | 'utenti' | 'pma_impostazioni'
   >('generali')
   const [filtroMezzi, setFiltroMezzi] = useState('')
+  const [backupName, setBackupName] = useState('')
+  const [backupBusy, setBackupBusy] = useState(false)
+  const [backups, setBackups] = useState<ManualBackupRecord[]>([])
+  const [backupNameDrafts, setBackupNameDrafts] = useState<Record<string, string>>({})
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
@@ -138,6 +150,24 @@ export function Settings() {
     )
   }
 
+  const backupEnabled = isSupabaseConfigured()
+
+  const reloadBackups = async () => {
+    if (!backupEnabled) return
+    const rows = await listManualBackups()
+    setBackups(rows)
+    setBackupNameDrafts((prev) => {
+      const next: Record<string, string> = {}
+      for (const b of rows) next[b.id] = prev[b.id] ?? b.name
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (tab !== 'generali' || !backupEnabled) return
+    void reloadBackups()
+  }, [tab, backupEnabled])
+
   return (
     <div className="ares-settings">
       <h1>Impostazioni</h1>
@@ -186,6 +216,145 @@ export function Settings() {
       {tab === 'generali' && (
         <>
       <DownloadFullDatabaseButton />
+      <section className="ares-settings-entity-panel">
+        <h2>Backup cloud (manuale)</h2>
+        <p className="ares-muted">
+          Crea backup on-demand dello stato DB corrente. Vengono mantenuti gli ultimi 5 backup.
+        </p>
+        {!backupEnabled && (
+          <p className="ares-muted">
+            Backup non disponibile: variabili Supabase non configurate.
+          </p>
+        )}
+        {backupEnabled && (
+          <>
+            <div className="ares-inline">
+              <input
+                value={backupName}
+                onChange={(e) => setBackupName(e.target.value)}
+                placeholder="Nome backup (opzionale)"
+              />
+              <button
+                type="button"
+                className="ares-btn primary"
+                disabled={backupBusy}
+                onClick={async () => {
+                  setBackupBusy(true)
+                  try {
+                    await createManualBackup(backupName)
+                    setBackupName('')
+                    await reloadBackups()
+                  } catch (e) {
+                    alert(
+                      `Errore creazione backup: ${e instanceof Error ? e.message : String(e)}`,
+                    )
+                  } finally {
+                    setBackupBusy(false)
+                  }
+                }}
+              >
+                {backupBusy ? 'Creazione...' : 'Crea backup'}
+              </button>
+            </div>
+            <div className="ares-table-wrap" style={{ marginTop: 12 }}>
+              <table className="ares-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Timestamp</th>
+                    <th>Utente</th>
+                    <th>Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backups.map((b) => (
+                    <tr key={b.id}>
+                      <td>
+                        <input
+                          value={backupNameDrafts[b.id] ?? b.name}
+                          onChange={(e) =>
+                            setBackupNameDrafts((prev) => ({
+                              ...prev,
+                              [b.id]: e.target.value,
+                            }))
+                          }
+                        />
+                      </td>
+                      <td>
+                        {b.createdAt
+                          ? new Date(b.createdAt).toLocaleString('it-IT')
+                          : '—'}
+                      </td>
+                      <td>{b.userId || '—'}</td>
+                      <td>
+                        <div className="ares-inline">
+                          <button
+                            type="button"
+                            className="ares-btn small ghost"
+                            disabled={backupBusy}
+                            onClick={async () => {
+                              setBackupBusy(true)
+                              try {
+                                await renameManualBackup(
+                                  b.id,
+                                  backupNameDrafts[b.id] ?? b.name,
+                                )
+                                await reloadBackups()
+                              } catch (e) {
+                                alert(
+                                  `Errore rinomina backup: ${e instanceof Error ? e.message : String(e)}`,
+                                )
+                              } finally {
+                                setBackupBusy(false)
+                              }
+                            }}
+                          >
+                            Salva nome
+                          </button>
+                          <button
+                            type="button"
+                            className="ares-btn small danger"
+                            disabled={backupBusy}
+                            onClick={async () => {
+                              if (
+                                !window.confirm(
+                                  `Ripristinare il backup "${b.name}"? Lo stato corrente verrà sostituito.`,
+                                )
+                              )
+                                return
+                              setBackupBusy(true)
+                              try {
+                                await restoreManualBackup(b.id)
+                                await useAresStore.persist.rehydrate()
+                                await reloadBackups()
+                              } catch (e) {
+                                alert(
+                                  `Errore ripristino backup: ${e instanceof Error ? e.message : String(e)}`,
+                                )
+                              } finally {
+                                setBackupBusy(false)
+                              }
+                            }}
+                          >
+                            Ripristina
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {backups.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="ares-muted">
+                        Nessun backup manuale disponibile.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
       {showModalitaSviluppoRow && (
         <section className="ares-settings-entity-panel">
           <h2>Modalità sviluppo</h2>
