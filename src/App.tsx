@@ -4,6 +4,7 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
   useNavigate,
 } from 'react-router-dom'
 import { Dashboard } from './views/Dashboard'
@@ -26,7 +27,6 @@ import {
 } from './store/supabasePersistStorage'
 import type { AppRouteKey } from './types'
 import { appVersionNavLabel } from './utils/appVersionLabel'
-import { firstAllowedRoutePath, routeAllowedForUser } from './utils/routeAccess'
 import './ares.css'
 
 const ROUTES: { key: AppRouteKey; label: string; to: string }[] = [
@@ -55,18 +55,8 @@ function GlobalModals() {
 
 function AppShellRoutes() {
   const navigate = useNavigate()
-  const impostazioni = useAresStore((s) => s.impostazioni)
-  const userId = null
-
-  const firstAllowedPath = useMemo(
-    () => firstAllowedRoutePath(impostazioni, userId),
-    [impostazioni, userId],
-  )
-
-  const homePath = useMemo(() => {
-    if (routeAllowedForUser(impostazioni, userId, 'dashboard')) return '/dashboard'
-    return firstAllowedPath
-  }, [impostazioni, userId, firstAllowedPath])
+  const location = useLocation()
+  const homePath = '/dashboard'
 
   const [syncBusy, setSyncBusy] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncAt())
@@ -78,10 +68,14 @@ function AppShellRoutes() {
     ? `SYNC ${new Date(lastSync).toLocaleString('it-IT')}`
     : 'SYNC --'
 
-  const canRoute = useMemo(
-    () => (k: AppRouteKey) => routeAllowedForUser(impostazioni, userId, k),
-    [impostazioni, userId],
-  )
+  const canRoute = useMemo(() => (_k: AppRouteKey) => true, [])
+
+  useEffect(() => {
+    if (location.pathname !== '/dashboard') {
+      navigate('/dashboard', { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="ares-app">
@@ -131,45 +125,23 @@ function AppShellRoutes() {
           <Route path="/" element={<Navigate to={homePath} replace />} />
           <Route
             path="/dashboard"
-            element={
-              canRoute('dashboard') ? <Dashboard /> : <Navigate to={firstAllowedPath} replace />
-            }
+            element={<Dashboard />}
           />
           <Route
             path="/impostazioni"
-            element={
-              canRoute('impostazioni') ? (
-                <Settings />
-              ) : (
-                <Navigate to={firstAllowedPath} replace />
-              )
-            }
+            element={<Settings />}
           />
           <Route
             path="/pma"
-            element={
-              canRoute('pma_modulo') ? <PmaModulo /> : <Navigate to={firstAllowedPath} replace />
-            }
+            element={<PmaModulo />}
           />
           <Route path="/PMA" element={<Navigate to="/pma" replace />} />
           <Route path="/pma-modulo" element={<Navigate to="/pma" replace />} />
-          <Route
-            path="/mezzo"
-            element={canRoute('mezzo') ? <MezzoVista /> : <Navigate to={firstAllowedPath} replace />}
-          />
-          <Route
-            path="/diario"
-            element={canRoute('diario') ? <Diario /> : <Navigate to={firstAllowedPath} replace />}
-          />
+          <Route path="/mezzo" element={<MezzoVista />} />
+          <Route path="/diario" element={<Diario />} />
           <Route
             path="/ricerca"
-            element={
-              canRoute('ricerca') ? (
-                <Ricerca onOpenDetail={() => navigate('/dashboard')} />
-              ) : (
-                <Navigate to={firstAllowedPath} replace />
-              )
-            }
+            element={<Ricerca onOpenDetail={() => navigate('/dashboard')} />}
           />
           <Route path="*" element={<Navigate to={homePath} replace />} />
         </Routes>
