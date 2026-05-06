@@ -9,6 +9,7 @@ const ROW_ID = 'default'
 const BACKUP_STORAGE_KEY = 'ares-supabase-backup'
 const SNAPSHOT_PREFIX = 'snapshot_'
 const SNAPSHOT_KEEP_COUNT = 50
+const SESSION_KEY = 'ares_session_v1'
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingValue: string | null = null
@@ -104,14 +105,30 @@ async function readRemoteStateRow(): Promise<{
   }
 }
 
-function buildSnapshotId(syncIso: string): string {
-  const compact = syncIso.replace(/[-:.TZ]/g, '').slice(0, 17)
-  const suffix = Math.random().toString(36).slice(2, 8)
-  return `${SNAPSHOT_PREFIX}${compact}_${suffix}`
+function getCurrentUserIdForSnapshot(): string {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    if (!raw) return 'anonymous'
+    const parsed = JSON.parse(raw) as { userId?: unknown }
+    const userId = String(parsed?.userId ?? '').trim()
+    return userId || 'anonymous'
+  } catch {
+    return 'anonymous'
+  }
 }
 
-async function createSnapshotRow(payload: unknown, syncIso: string): Promise<void> {
-  const snapshotId = buildSnapshotId(syncIso)
+function buildSnapshotId(syncIso: string, userId: string): string {
+  const compact = syncIso.replace(/[-:.TZ]/g, '').slice(0, 17)
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `${SNAPSHOT_PREFIX}${userId}_${compact}_${suffix}`
+}
+
+async function createSnapshotRow(
+  payload: unknown,
+  syncIso: string,
+  userId: string,
+): Promise<void> {
+  const snapshotId = buildSnapshotId(syncIso, userId)
   const { error } = await supabase.from('ares_state').insert({
     id: snapshotId,
     payload,
@@ -120,11 +137,11 @@ async function createSnapshotRow(payload: unknown, syncIso: string): Promise<voi
   if (error) throw error
 }
 
-async function pruneSnapshots(): Promise<void> {
+async function pruneSnapshots(userId: string): Promise<void> {
   const { data, error } = await supabase
     .from('ares_state')
     .select('id, updated_at')
-    .like('id', `${SNAPSHOT_PREFIX}%`)
+    .like('id', `${SNAPSHOT_PREFIX}${userId}_%`)
     .order('updated_at', { ascending: false })
     .range(SNAPSHOT_KEEP_COUNT, SNAPSHOT_KEEP_COUNT + 500)
 
@@ -136,8 +153,9 @@ async function pruneSnapshots(): Promise<void> {
 
 async function archiveSnapshot(payload: unknown, syncIso: string): Promise<void> {
   try {
-    await createSnapshotRow(payload, syncIso)
-    await pruneSnapshots()
+    const userId = getCurrentUserIdForSnapshot()
+    await createSnapshotRow(payload, syncIso, userId)
+    await pruneSnapshots(userId)
   } catch (error) {
     console.warn('[Ares] Snapshot archive failed:', error)
   }

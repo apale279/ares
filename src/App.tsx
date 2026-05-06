@@ -7,6 +7,7 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
+import { releaseUserDeviceLock } from './auth/deviceSessionLock'
 import { Dashboard } from './views/Dashboard'
 import { PmaModulo } from './views/PmaModulo'
 import { Settings } from './views/Settings'
@@ -131,6 +132,9 @@ function AppShellRoutes() {
             type="button"
             className="ares-btn ghost ares-nav-logout"
             onClick={() => {
+              if (session?.userId) {
+                void releaseUserDeviceLock(session.userId)
+              }
               logout()
               navigate('/login', { replace: true })
             }}

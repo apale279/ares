@@ -47,6 +47,31 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+const LOCAL_LAYOUT_KEY = 'ares-layout-local-v1'
+
+function readLocalLayout(): { layout: LayoutPannelli; layoutVersion: number } | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_LAYOUT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as {
+      layout?: LayoutPannelli
+      layoutVersion?: number
+    }
+    if (!parsed?.layout || typeof parsed.layoutVersion !== 'number') return null
+    return { layout: parsed.layout, layoutVersion: parsed.layoutVersion }
+  } catch {
+    return null
+  }
+}
+
+function writeLocalLayout(layout: LayoutPannelli, layoutVersion: number): void {
+  try {
+    localStorage.setItem(LOCAL_LAYOUT_KEY, JSON.stringify({ layout, layoutVersion }))
+  } catch {
+    /* ignore */
+  }
+}
+
 function patchSeqSeNecessario(
   state: Pick<
     AresState,
@@ -206,7 +231,9 @@ export const useAresStore = create<AresState>()(
 
       resetLayoutVista: () => {
         const { width, height } = workspaceArea()
-        set({ layout: computeDefaultLayout(width, height) })
+        const nextLayout = computeDefaultLayout(width, height)
+        set({ layout: nextLayout })
+        writeLocalLayout(nextLayout, LAYOUT_VERSION)
       },
 
       setImpostazioni: (p) =>
@@ -215,22 +242,35 @@ export const useAresStore = create<AresState>()(
         })),
 
       setLayout: (l) =>
-        set((s) => ({ layout: { ...s.layout, ...l } })),
+        set((s) => {
+          const nextLayout = { ...s.layout, ...l }
+          writeLocalLayout(nextLayout, LAYOUT_VERSION)
+          return { layout: nextLayout }
+        }),
 
       updatePanelRect: (key, rect) =>
-        set((s) => ({
-          layout: {
+        set((s) => {
+          const nextLayout = {
             ...s.layout,
             [key]: { ...s.layout[key], ...rect },
-          },
-        })),
+          }
+          writeLocalLayout(nextLayout, LAYOUT_VERSION)
+          return { layout: nextLayout }
+        }),
 
       applyPanelLayoutQuad: (key, rect) =>
         set((s) => {
           const merged = { ...s.layout[key], ...rect }
           const { width, height } = workspaceArea()
+          const nextLayout = reconcileQuadLayoutAfterPanelChange(
+            key,
+            merged,
+            width,
+            height,
+          )
+          writeLocalLayout(nextLayout, LAYOUT_VERSION)
           return {
-            layout: reconcileQuadLayoutAfterPanelChange(key, merged, width, height),
+            layout: nextLayout,
           }
         }),
 
@@ -696,18 +736,22 @@ export const useAresStore = create<AresState>()(
         nextIdEvento: s.nextIdEvento,
         nextIdMissione: s.nextIdMissione,
         nextIdPaziente: s.nextIdPaziente,
-        layout: s.layout,
-        layoutVersion: s.layoutVersion,
       }),
       merge: (persistedState, currentState) => {
         const p = (persistedState ?? {}) as Partial<AresState>
         const c = currentState as AresState
         const out = { ...c, ...p } as AresState
-        const prevVer = p.layoutVersion
-        if (prevVer == null || prevVer < LAYOUT_VERSION) {
+        const localLayout = readLocalLayout()
+        const prevVer = localLayout?.layoutVersion
+        if (localLayout && prevVer != null && prevVer >= LAYOUT_VERSION) {
+          out.layout = localLayout.layout
+          out.layoutVersion = localLayout.layoutVersion
+        } else {
           const { width, height } = workspaceArea()
-          out.layout = computeDefaultLayout(width, height)
+          const nextLayout = computeDefaultLayout(width, height)
+          out.layout = nextLayout
           out.layoutVersion = LAYOUT_VERSION
+          writeLocalLayout(nextLayout, LAYOUT_VERSION)
         }
         if (out.mezzi?.length) {
           out.mezzi = out.mezzi.map((m) => ({

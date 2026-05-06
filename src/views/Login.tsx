@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { acquireUserDeviceLock } from '../auth/deviceSessionLock'
 import { useAresStore } from '../store/aresStore'
 
 export function Login() {
@@ -11,7 +12,7 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     setErr('')
     const u = nomeUtente.trim()
@@ -25,6 +26,11 @@ export function Login() {
     )
     if (!found || found.password !== p) {
       setErr('Credenziali non valide.')
+      return
+    }
+    const lock = await acquireUserDeviceLock(found.id)
+    if (!lock.ok) {
+      setErr(lock.reason ?? 'Impossibile validare la sessione su questo dispositivo.')
       return
     }
     login({ userId: found.id, nomeUtente: found.nomeUtente })
