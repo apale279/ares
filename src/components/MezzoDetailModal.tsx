@@ -1,5 +1,6 @@
 import { useAresStore } from '../store/aresStore'
 import { equipaggioToPlainText } from '../utils/equipaggioPrint'
+import { coordinateMarkerMezzo } from '../utils/mezzoMapPosition'
 
 export function MezzoDetailModal({ onClose }: { onClose: () => void }) {
   const mezzoId = useAresStore((s) => s.modalMezzoId)
@@ -51,10 +52,38 @@ export function MezzoDetailModal({ onClose }: { onClose: () => void }) {
             <input value={mezzo.stazionamento} readOnly />
           </label>
           <p className="ares-muted">
-            Coordinate:{' '}
+            Stazionamento (coordinate):{' '}
             {mezzo.stazionamentoLat != null && mezzo.stazionamentoLng != null
               ? `${mezzo.stazionamentoLat.toFixed(5)}, ${mezzo.stazionamentoLng.toFixed(5)}`
               : '—'}
+          </p>
+          <p className="ares-muted">
+            Posizione reale (Telegram):{' '}
+            {mezzo.posizioneRealeLat != null &&
+            mezzo.posizioneRealeLng != null &&
+            Number.isFinite(mezzo.posizioneRealeLat) &&
+            Number.isFinite(mezzo.posizioneRealeLng)
+              ? `${mezzo.posizioneRealeLat.toFixed(5)}, ${mezzo.posizioneRealeLng.toFixed(5)}${
+                  mezzo.posizioneRealeAt
+                    ? ` · ${new Date(mezzo.posizioneRealeAt).toLocaleString('it-IT')}`
+                    : ''
+                }`
+              : '—'}
+          </p>
+          <p className="ares-muted">
+            Marker mappa:{' '}
+            {(() => {
+              const c = coordinateMarkerMezzo(mezzo)
+              return c
+                ? `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}${
+                    mezzo.stato === 'OCCUPATO' &&
+                    mezzo.posizioneRealeLat != null &&
+                    mezzo.posizioneRealeLng != null
+                      ? ' (posizione Telegram)'
+                      : ' (stazionamento)'
+                  }`
+                : '—'
+            })()}
           </p>
           <h4>Equipaggio</h4>
           <pre className="ares-pre">{equipaggioToPlainText(mezzo.equipaggio)}</pre>

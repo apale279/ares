@@ -245,6 +245,9 @@ export async function importMezziFromExcelBuffer(
         stazionamento: geo.stazionamento,
         stazionamentoLat: geo.lat,
         stazionamentoLng: geo.lng,
+        posizioneRealeLat: null,
+        posizioneRealeLng: null,
+        posizioneRealeAt: null,
         equipaggio,
         stato: statoParsed ?? 'DISPONIBILE',
       })

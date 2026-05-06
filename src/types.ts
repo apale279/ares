@@ -52,6 +52,13 @@ export interface Mezzo {
   /** Coordinate dello stazionamento (geocoding o click mappa) */
   stazionamentoLat: number | null
   stazionamentoLng: number | null
+  /**
+   * Ultima posizione GPS ricevuta da Telegram (condivisione luogo o avanzamento stato).
+   * In mappa: usata solo se il mezzo è OCCUPATO; se DISPONIBILE la mappa usa lo stazionamento.
+   */
+  posizioneRealeLat: number | null
+  posizioneRealeLng: number | null
+  posizioneRealeAt: string | null
   equipaggio: Equipaggio
   stato: StatoMezzo
 }

@@ -506,11 +506,34 @@ async function handleMissionAdvanceCallback(ctx, data) {
       return { ...slegato, pmaArrivoAt: p.pmaArrivoAt ?? now }
     })
   }
-  let mezziNext = mezzi
+  let mezziNext = mezzi.map((mz) => ({ ...mz }))
+  const mzIdx = mezziNext.findIndex((mz) => mz.id === missione.mezzoId)
   if (next === 'FINE_MISSIONE') {
-    mezziNext = mezzi.map((mz) =>
-      mz.id === missione.mezzoId ? { ...mz, stato: 'DISPONIBILE' } : mz,
-    )
+    if (mzIdx >= 0) {
+      mezziNext[mzIdx] = {
+        ...mezziNext[mzIdx],
+        stato: 'DISPONIBILE',
+        posizioneRealeLat: null,
+        posizioneRealeLng: null,
+        posizioneRealeAt: null,
+      }
+    }
+  } else if (mzIdx >= 0) {
+    const tlp = missione.telegramLastPosition
+    const tlpOk =
+      tlp &&
+      typeof tlp.lat === 'number' &&
+      typeof tlp.lng === 'number' &&
+      Number.isFinite(tlp.lat) &&
+      Number.isFinite(tlp.lng)
+    if (tlpOk) {
+      mezziNext[mzIdx] = {
+        ...mezziNext[mzIdx],
+        posizioneRealeLat: tlp.lat,
+        posizioneRealeLng: tlp.lng,
+        posizioneRealeAt: now,
+      }
+    }
   }
   const eventiNext = reconcileEventi(eventi, missioni)
   const nextPayload = {
@@ -567,6 +590,7 @@ bot.on('message', async (ctx, next) => {
     const payload = row.payload
     const st = payload.state ?? {}
     const missioni = Array.isArray(st.missioni) ? [...st.missioni] : []
+    let mezzi = Array.isArray(st.mezzi) ? [...st.mezzi] : []
     const now = new Date().toISOString()
     const mezzoSet = new Set(mezzoIds)
     const candidates = missioni
@@ -595,12 +619,21 @@ bot.on('message', async (ctx, next) => {
         at: now,
       },
     }
+    const im = mezzi.findIndex((mz) => mz.id === mis.mezzoId)
+    if (im >= 0) {
+      mezzi[im] = {
+        ...mezzi[im],
+        posizioneRealeLat: loc.latitude,
+        posizioneRealeLng: loc.longitude,
+        posizioneRealeAt: now,
+      }
+    }
     const { error } = await supabase
       .from('ares_state')
       .update({
         payload: {
           ...payload,
-          state: { ...st, missioni },
+          state: { ...st, missioni, mezzi },
         },
         updated_at: now,
       })
@@ -612,7 +645,7 @@ bot.on('message', async (ctx, next) => {
     }
     missionCache.set(mis.id, missioni[i])
     await ctx.reply(
-      `Posizione registrata sulla missione ${mis.id} (${mis.stato}).`,
+      `Posizione GPS registrata sul mezzo e sulla missione ${mis.id} (${mis.stato}).`,
     )
   } catch (err) {
     console.error('[Telegram location handler]', err)

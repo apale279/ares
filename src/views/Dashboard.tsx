@@ -16,6 +16,7 @@ import {
   raggruppaMezziLegacyDashboard,
   raggruppaMezziPerTipoDashboard,
 } from '../utils/ordineMezzi'
+import { coordinateMarkerMezzo } from '../utils/mezzoMapPosition'
 import logoAres from '../../logo.png'
 
 export function Dashboard() {
@@ -181,19 +182,12 @@ export function Dashboard() {
   const puntiMezziMap = useMemo(
     () =>
       mezzi
-        .filter(
-          (m) =>
-            m.stazionamentoLat != null &&
-            m.stazionamentoLng != null &&
-            Number.isFinite(m.stazionamentoLat) &&
-            Number.isFinite(m.stazionamentoLng),
-        )
-        .map((m) => ({
-          id: m.id,
-          lat: m.stazionamentoLat!,
-          lng: m.stazionamentoLng!,
-          label: m.sigla,
-        })),
+        .map((m) => {
+          const p = coordinateMarkerMezzo(m)
+          if (!p) return null
+          return { id: m.id, lat: p.lat, lng: p.lng, label: m.sigla }
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null),
     [mezzi],
   )
 
