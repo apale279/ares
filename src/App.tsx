@@ -4,15 +4,16 @@ import {
   NavLink,
   Route,
   Routes,
-  useLocation,
   useNavigate,
 } from 'react-router-dom'
+import { useAuth } from './auth/AuthContext'
 import { Dashboard } from './views/Dashboard'
 import { PmaModulo } from './views/PmaModulo'
 import { Settings } from './views/Settings'
 import { Ricerca } from './views/Ricerca'
 import { MezzoVista } from './views/MezzoVista'
 import { Diario } from './views/Diario'
+import { Login } from './views/Login'
 import { EventDetailModal } from './components/EventDetailModal'
 import { MissionDetailModal } from './components/MissionDetailModal'
 import { PatientDetailModal } from './components/PatientDetailModal'
@@ -27,6 +28,7 @@ import {
 } from './store/supabasePersistStorage'
 import type { AppRouteKey } from './types'
 import { appVersionNavLabel } from './utils/appVersionLabel'
+import { firstAllowedRoutePath, routeAllowedForUser } from './utils/routeAccess'
 import './ares.css'
 
 const ROUTES: { key: AppRouteKey; label: string; to: string }[] = [
@@ -55,8 +57,19 @@ function GlobalModals() {
 
 function AppShellRoutes() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const homePath = '/dashboard'
+  const impostazioni = useAresStore((s) => s.impostazioni)
+  const { session, logout } = useAuth()
+  const userId = session?.userId
+
+  const firstAllowedPath = useMemo(
+    () => firstAllowedRoutePath(impostazioni, userId),
+    [impostazioni, userId],
+  )
+
+  const homePath = useMemo(() => {
+    if (routeAllowedForUser(impostazioni, userId, 'dashboard')) return '/dashboard'
+    return firstAllowedPath
+  }, [impostazioni, userId, firstAllowedPath])
 
   const [syncBusy, setSyncBusy] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncAt())
@@ -68,14 +81,10 @@ function AppShellRoutes() {
     ? `SYNC ${new Date(lastSync).toLocaleString('it-IT')}`
     : 'SYNC --'
 
-  const canRoute = useMemo(() => (_k: AppRouteKey) => true, [])
-
-  useEffect(() => {
-    if (location.pathname !== '/dashboard') {
-      navigate('/dashboard', { replace: true })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const canRoute = useMemo(
+    () => (k: AppRouteKey) => routeAllowedForUser(impostazioni, userId, k),
+    [impostazioni, userId],
+  )
 
   return (
     <div className="ares-app">
@@ -118,6 +127,16 @@ function AppShellRoutes() {
               {syncBusy ? 'SYNC...' : syncLabel}
             </button>
           )}
+          <button
+            type="button"
+            className="ares-btn ghost ares-nav-logout"
+            onClick={() => {
+              logout()
+              navigate('/login', { replace: true })
+            }}
+          >
+            Logout
+          </button>
         </div>
       </nav>
       <main className="ares-main">
@@ -125,24 +144,47 @@ function AppShellRoutes() {
           <Route path="/" element={<Navigate to={homePath} replace />} />
           <Route
             path="/dashboard"
-            element={<Dashboard />}
+            element={
+              canRoute('dashboard') ? <Dashboard /> : <Navigate to={firstAllowedPath} replace />
+            }
           />
           <Route
             path="/impostazioni"
-            element={<Settings />}
+            element={
+              canRoute('impostazioni') ? (
+                <Settings />
+              ) : (
+                <Navigate to={firstAllowedPath} replace />
+              )
+            }
           />
           <Route
             path="/pma"
-            element={<PmaModulo />}
+            element={
+              canRoute('pma_modulo') ? <PmaModulo /> : <Navigate to={firstAllowedPath} replace />
+            }
           />
           <Route path="/PMA" element={<Navigate to="/pma" replace />} />
           <Route path="/pma-modulo" element={<Navigate to="/pma" replace />} />
-          <Route path="/mezzo" element={<MezzoVista />} />
-          <Route path="/diario" element={<Diario />} />
+          <Route
+            path="/mezzo"
+            element={canRoute('mezzo') ? <MezzoVista /> : <Navigate to={firstAllowedPath} replace />}
+          />
+          <Route
+            path="/diario"
+            element={canRoute('diario') ? <Diario /> : <Navigate to={firstAllowedPath} replace />}
+          />
           <Route
             path="/ricerca"
-            element={<Ricerca onOpenDetail={() => navigate('/dashboard')} />}
+            element={
+              canRoute('ricerca') ? (
+                <Ricerca onOpenDetail={() => navigate('/dashboard')} />
+              ) : (
+                <Navigate to={firstAllowedPath} replace />
+              )
+            }
           />
+          <Route path="/login" element={<Navigate to={homePath} replace />} />
           <Route path="*" element={<Navigate to={homePath} replace />} />
         </Routes>
       </main>
@@ -152,5 +194,18 @@ function AppShellRoutes() {
 }
 
 export default function App() {
+  const { session } = useAuth()
+  const sessionOk =
+    session != null && Boolean(session.userId?.trim()) && Boolean(session.nomeUtente?.trim())
+
+  if (!sessionOk) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    )
+  }
+
   return <AppShellRoutes />
 }

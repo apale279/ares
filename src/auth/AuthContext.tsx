@@ -16,7 +16,7 @@ export type AresSession = {
 
 function readSession(): AresSession | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
+    const raw = localStorage.getItem(SESSION_KEY)
     if (!raw) return null
     const o = JSON.parse(raw) as unknown
     if (!o || typeof o !== 'object') return null
@@ -41,12 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AresSession | null>(() => readSession())
 
   const login = useCallback((s: AresSession) => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(s))
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s))
     setSession(s)
   }, [])
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(SESSION_KEY)
     setSession(null)
   }, [])
 
