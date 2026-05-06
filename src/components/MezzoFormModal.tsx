@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Mezzo, StatoMezzo } from '../types'
+import type { Mezzo, StatoMezzo, StazionamentoMezzoPreset } from '../types'
 import { geocodeIndirizzo } from '../utils/geocode'
 import { copiaEquipaggio, equipaggioVuoto } from '../utils/equipaggio'
 import { MezzoStazionamentoMap } from './MezzoStazionamentoMap'
@@ -9,6 +9,7 @@ export function MezzoFormModal({
   open,
   mezzo,
   tipiMezzo,
+  stazionamentiPresets,
   onSave,
   onDelete,
   onClose,
@@ -16,6 +17,7 @@ export function MezzoFormModal({
   open: boolean
   mezzo: Mezzo | null
   tipiMezzo: string[]
+  stazionamentiPresets: StazionamentoMezzoPreset[]
   onSave: (m: Omit<Mezzo, 'id'> & { id?: string }) => void
   onDelete?: () => void
   onClose: () => void
@@ -34,6 +36,8 @@ export function MezzoFormModal({
 
   const [form, setForm] = useState<Omit<Mezzo, 'id'>>(empty)
   const [geoBusy, setGeoBusy] = useState(false)
+  const [stazMode, setStazMode] = useState<'manuale' | 'preset'>('manuale')
+  const [stazPresetId, setStazPresetId] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -49,14 +53,29 @@ export function MezzoFormModal({
         equipaggio: copiaEquipaggio(mezzo.equipaggio),
         stato: mezzo.stato,
       })
+      const match = stazionamentiPresets.find(
+        (s) =>
+          s.indirizzo.trim() === mezzo.stazionamento.trim() &&
+          (s.lat ?? null) === (mezzo.stazionamentoLat ?? null) &&
+          (s.lng ?? null) === (mezzo.stazionamentoLng ?? null),
+      )
+      if (match) {
+        setStazMode('preset')
+        setStazPresetId(match.id)
+      } else {
+        setStazMode('manuale')
+        setStazPresetId('')
+      }
     } else {
       setForm({
         ...empty,
         tipo: tipiMezzo[0] ?? '',
         equipaggio: equipaggioVuoto(),
       })
+      setStazMode('manuale')
+      setStazPresetId('')
     }
-  }, [open, mezzo, tipiMezzo])
+  }, [open, mezzo, tipiMezzo, stazionamentiPresets])
 
   if (!open) return null
 
@@ -139,114 +158,170 @@ export function MezzoFormModal({
               </select>
             </label>
             <label className="full">
-              Stazionamento (Photon)
-              <PhotonAddressField
-                value={
-                  form.stazionamentoLat != null && form.stazionamentoLng != null
-                    ? {
-                        display_name: form.stazionamento,
-                        lat: form.stazionamentoLat,
-                        lon: form.stazionamentoLng,
-                      }
-                    : null
-                }
-                previewText={
-                  form.stazionamentoLat != null && form.stazionamentoLng != null
-                    ? ''
-                    : form.stazionamento
-                }
-                placeholder="Cerca lo stazionamento in Italia (via, sede, comune…)"
-                onDraftCommit={(text) =>
-                  setForm((f) => ({ ...f, stazionamento: text }))
-                }
-                onChange={(hit) => {
-                  if (!hit) {
-                    setForm((f) => ({
-                      ...f,
-                      stazionamento: '',
-                      stazionamentoLat: null,
-                      stazionamentoLng: null,
-                    }))
-                    return
-                  }
-                  setForm((f) => ({
-                    ...f,
-                    stazionamento: hit.display_name,
-                    stazionamentoLat: hit.lat,
-                    stazionamentoLng: hit.lon,
-                  }))
-                }}
-              />
-            </label>
-            <div className="ares-row">
-              <label>
-                Lat
-                <input
-                  type="number"
-                  step="any"
-                  value={form.stazionamentoLat ?? ''}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      stazionamentoLat:
-                        e.target.value === '' ? null : Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                Lng
-                <input
-                  type="number"
-                  step="any"
-                  value={form.stazionamentoLng ?? ''}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      stazionamentoLng:
-                        e.target.value === '' ? null : Number(e.target.value),
-                    }))
-                  }
-                />
-              </label>
-              <button
-                type="button"
-                className="ares-btn secondary"
-                disabled={geoBusy || !form.stazionamento.trim()}
-                title="Usa il testo stazionamento (anche senza suggerimento Photon) con geocoding Nominatim"
-                onClick={async () => {
-                  setGeoBusy(true)
-                  try {
-                    const hit = await geocodeIndirizzo(form.stazionamento.trim())
-                    if (hit) {
-                      setForm((f) => ({
-                        ...f,
-                        stazionamento: hit.displayName,
-                        stazionamentoLat: hit.lat,
-                        stazionamentoLng: hit.lng,
-                      }))
-                    } else alert('Indirizzo non trovato.')
-                  } finally {
-                    setGeoBusy(false)
-                  }
+              Origine stazionamento
+              <select
+                value={stazMode}
+                onChange={(e) => {
+                  const v = e.target.value as 'manuale' | 'preset'
+                  setStazMode(v)
+                  if (v === 'manuale') setStazPresetId('')
                 }}
               >
-                {geoBusy ? '…' : 'Cerca coordinate'}
-              </button>
-            </div>
-            <p className="ares-muted full">
-              Coordinate attuali: Lat {form.stazionamentoLat?.toFixed(5) ?? '—'}, Lng{' '}
-              {form.stazionamentoLng?.toFixed(5) ?? '—'}. Puoi modificarle a mano,
-              cercarle dal testo, oppure cliccare sulla mappa sotto.
-            </p>
+                <option value="manuale">Inserimento manuale (testo / mappa)</option>
+                <option value="preset" disabled={stazionamentiPresets.length === 0}>
+                  Da elenco stazionamenti (Impostazioni)
+                </option>
+              </select>
+            </label>
+            {stazMode === 'preset' ? (
+              <label className="full">
+                Stazionamento salvato
+                <select
+                  value={stazPresetId}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setStazPresetId(id)
+                    const p = stazionamentiPresets.find((x) => x.id === id)
+                    if (p) {
+                      setForm((f) => ({
+                        ...f,
+                        stazionamento: p.indirizzo,
+                        stazionamentoLat: p.lat,
+                        stazionamentoLng: p.lng,
+                      }))
+                    }
+                  }}
+                >
+                  <option value="">— Scegli —</option>
+                  {stazionamentiPresets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nome}
+                      {s.indirizzo.trim() ? ` · ${s.indirizzo}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {stazMode === 'manuale' ? (
+              <>
+                <label className="full">
+                  Stazionamento (Photon)
+                  <PhotonAddressField
+                    value={
+                      form.stazionamentoLat != null && form.stazionamentoLng != null
+                        ? {
+                            display_name: form.stazionamento,
+                            lat: form.stazionamentoLat,
+                            lon: form.stazionamentoLng,
+                          }
+                        : null
+                    }
+                    previewText={
+                      form.stazionamentoLat != null && form.stazionamentoLng != null
+                        ? ''
+                        : form.stazionamento
+                    }
+                    placeholder="Cerca lo stazionamento in Italia (via, sede, comune…)"
+                    onDraftCommit={(text) =>
+                      setForm((f) => ({ ...f, stazionamento: text }))
+                    }
+                    onChange={(hit) => {
+                      if (!hit) {
+                        setForm((f) => ({
+                          ...f,
+                          stazionamento: '',
+                          stazionamentoLat: null,
+                          stazionamentoLng: null,
+                        }))
+                        return
+                      }
+                      setForm((f) => ({
+                        ...f,
+                        stazionamento: hit.display_name,
+                        stazionamentoLat: hit.lat,
+                        stazionamentoLng: hit.lon,
+                      }))
+                    }}
+                  />
+                </label>
+                <div className="ares-row">
+                  <label>
+                    Lat
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.stazionamentoLat ?? ''}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          stazionamentoLat:
+                            e.target.value === '' ? null : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    Lng
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.stazionamentoLng ?? ''}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          stazionamentoLng:
+                            e.target.value === '' ? null : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="ares-btn secondary"
+                    disabled={geoBusy || !form.stazionamento.trim()}
+                    title="Usa il testo stazionamento (anche senza suggerimento Photon) con geocoding Nominatim"
+                    onClick={async () => {
+                      setGeoBusy(true)
+                      try {
+                        const hit = await geocodeIndirizzo(form.stazionamento.trim())
+                        if (hit) {
+                          setForm((f) => ({
+                            ...f,
+                            stazionamento: hit.displayName,
+                            stazionamentoLat: hit.lat,
+                            stazionamentoLng: hit.lng,
+                          }))
+                        } else alert('Indirizzo non trovato.')
+                      } finally {
+                        setGeoBusy(false)
+                      }
+                    }}
+                  >
+                    {geoBusy ? '…' : 'Cerca coordinate'}
+                  </button>
+                </div>
+                <p className="ares-muted full">
+                  Coordinate attuali: Lat {form.stazionamentoLat?.toFixed(5) ?? '—'}, Lng{' '}
+                  {form.stazionamentoLng?.toFixed(5) ?? '—'}. Puoi modificarle a mano,
+                  cercarle dal testo, oppure cliccare sulla mappa sotto.
+                </p>
+              </>
+            ) : (
+              <p className="ares-muted full">
+                Indirizzo e coordinate seguono lo stazionamento scelto. Puoi poi passare
+                a «manuale» per rifinire sul campo.
+              </p>
+            )}
           </div>
 
           <MezzoStazionamentoMap
             lat={form.stazionamentoLat}
             lng={form.stazionamentoLng}
-            onPick={(lat, lng) =>
+            onPick={(lat, lng) => {
+              setStazMode('manuale')
+              setStazPresetId('')
               setForm((f) => ({ ...f, stazionamentoLat: lat, stazionamentoLng: lng }))
-            }
+            }}
           />
 
           <h4>Equipaggio</h4>

@@ -157,6 +157,12 @@ export interface AresState {
 
   addMissione: (eventoId: string, mezzoId: string, force?: boolean) => { ok: true; id: string } | { ok: false; reason: string }
   updateMissioneStato: (missioneId: string, stato: StatoMissione) => void
+  /** Modifica la data/ora di una voce esistente nello storico stati (indice nell’array persistito). */
+  patchMissioneStatoHistoryAt: (
+    missioneId: string,
+    historyIndex: number,
+    atIso: string,
+  ) => void
   addTrattaMissione: (missioneId: string, payload?: Partial<TrattaMissione>) => void
   updateTrattaMissione: (missioneId: string, trattaId: string, patch: Partial<TrattaMissione>) => void
   deleteTrattaMissione: (missioneId: string, trattaId: string) => void
@@ -443,6 +449,19 @@ export const useAresStore = create<AresState>()(
         })
         get()._reconcile()
         return { ok: true, id }
+      },
+
+      patchMissioneStatoHistoryAt: (missioneId, historyIndex, atIso) => {
+        set((s) => ({
+          missioni: s.missioni.map((m) => {
+            if (m.id !== missioneId) return m
+            const next = [...m.statoHistory]
+            const row = next[historyIndex]
+            if (!row) return m
+            next[historyIndex] = { ...row, at: atIso }
+            return { ...m, statoHistory: next }
+          }),
+        }))
       },
 
       updateMissioneStato: (missioneId, stato) => {

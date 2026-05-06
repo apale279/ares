@@ -59,6 +59,15 @@ export interface Mezzo {
 /** Voci secondarie per ogni valore del menu principale (chiave = testo esatto del genitore) */
 export type VociPerGenitore = Record<string, string[]>
 
+/** Stazionamenti preimpostati (Impostazioni → Mezzi); riusabili nel form mezzo */
+export interface StazionamentoMezzoPreset {
+  id: string
+  nome: string
+  indirizzo: string
+  lat: number | null
+  lng: number | null
+}
+
 export interface PMAPostazione {
   id: string
   nome: string
@@ -263,6 +272,8 @@ export interface Impostazioni {
   modalitaSviluppo?: boolean
   /** Id mezzi nell’ordine mostrato in Impostazioni e nel pannello Mezzi dashboard. */
   ordineMezziIds: string[]
+  /** Stazionamenti ricorrenti con indirizzo/coordinate */
+  stazionamentiMezzo: StazionamentoMezzoPreset[]
   tipiMezzo: string[]
   ospedali: string[]
   /** Nomi PMA (sincronizzati con postazioniPma; retrocompatibilità) */

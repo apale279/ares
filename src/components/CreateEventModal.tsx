@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CodiceEvento } from '../types'
 import { CODICE_EVENTO_COLOR } from '../constants'
 import { useAresStore } from '../store/aresStore'
@@ -15,8 +15,6 @@ export function CreateEventModal({
   onClose: () => void
 }) {
   const addEvento = useAresStore((s) => s.addEvento)
-  const addMissione = useAresStore((s) => s.addMissione)
-  const mezzi = useAresStore((s) => s.mezzi)
   const impostazioni = useAresStore((s) => s.impostazioni)
 
   const [indirizzoLimitato, setIndirizzoLimitato] = useState(false)
@@ -41,15 +39,9 @@ export function CreateEventModal({
   const [segnalatoDa, setSegnalatoDa] = useState('')
   const [eventoInAttesa, setEventoInAttesa] = useState(false)
   const [geoBusy, setGeoBusy] = useState(false)
-  const [mezzoMissione, setMezzoMissione] = useState('')
-
-  const mezziDisponibili = useMemo(
-    () => mezzi.filter((m) => m.stato === 'DISPONIBILE'),
-    [mezzi],
-  )
 
   const submit = () => {
-    const eventoId = addEvento({
+    addEvento({
       indirizzoLimitato,
       indirizzo,
       lat,
@@ -66,11 +58,6 @@ export function CreateEventModal({
       luogoTipo,
       dettaglioLuogo,
     })
-
-    if (mezzoMissione) {
-      const resMissione = addMissione(eventoId, mezzoMissione)
-      if (!resMissione.ok) alert(resMissione.reason)
-    }
 
     onClose()
   }
@@ -335,23 +322,6 @@ export function CreateEventModal({
             />
             Evento in attesa
           </label>
-          <section className="ares-section">
-            <h3 className="ares-section-title">Missione iniziale (opzionale)</h3>
-            <label>
-              Mezzo da inviare subito
-              <select
-                value={mezzoMissione}
-                onChange={(e) => setMezzoMissione(e.target.value)}
-              >
-                <option value="">Nessuno</option>
-                {mezziDisponibili.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.sigla} ({m.tipo})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
           <div className="ares-modal-actions">
             <button type="button" className="ares-btn primary" onClick={submit}>
               Crea evento

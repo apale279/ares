@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DEFAULT_IMPOSTAZIONI } from '../constants'
-import type { AppRouteKey, Mezzo, RankUtente, Utente } from '../types'
+import type {
+  AppRouteKey,
+  Mezzo,
+  RankUtente,
+  StazionamentoMezzoPreset,
+  Utente,
+} from '../types'
 import { testoMultirigaDaVoci, vociDaTestoMultiriga } from '../utils/textLists'
 import { DownloadFullDatabaseButton } from '../components/DownloadFullDatabaseButton'
 import { ImportMezziExcelButton } from '../components/ImportMezziExcelButton'
 import { MezzoFormModal } from '../components/MezzoFormModal'
+import { StazionamentoPresetModal } from '../components/StazionamentoPresetModal'
 import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchichePanel'
 import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
@@ -88,7 +94,7 @@ export function Settings() {
   const [utentePassword, setUtentePassword] = useState('')
   const [utenteRankId, setUtenteRankId] = useState('')
   const [tab, setTab] = useState<
-    'generali' | 'mezzi' | 'valutazioni' | 'utenti' | 'pma_impostazioni'
+    'generali' | 'evento' | 'mezzi' | 'valutazioni' | 'utenti' | 'pma_impostazioni'
   >('generali')
   const [filtroMezzi, setFiltroMezzi] = useState('')
   const [backupName, setBackupName] = useState('')
@@ -96,6 +102,10 @@ export function Settings() {
   const [backups, setBackups] = useState<ManualBackupRecord[]>([])
   const [backupNameDrafts, setBackupNameDrafts] = useState<Record<string, string>>({})
   const [dragMezzoId, setDragMezzoId] = useState<string | null>(null)
+  const [stazModalOpen, setStazModalOpen] = useState(false)
+  const [editingStazione, setEditingStazione] = useState<StazionamentoMezzoPreset | null>(
+    null,
+  )
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
@@ -128,22 +138,12 @@ export function Settings() {
     })
   }, [mezziOrdinati, filtroMezzi])
 
-  const idsOrdineCompletoMemo = useMemo(
+  const ordineCorrenteMezzi = useMemo(
     () => ordineMezziCompleto(mezzi, impostazioni.ordineMezziIds),
     [mezzi, impostazioni.ordineMezziIds],
   )
 
-  const spostaMezzoInElenco = (id: string, delta: number) => {
-    const cur = ordineMezziCompleto(mezzi, impostazioni.ordineMezziIds)
-    const i = cur.indexOf(id)
-    const j = i + delta
-    if (i < 0 || j < 0 || j >= cur.length) return
-    const next = [...cur]
-    const t = next[i]!
-    next[i] = next[j]!
-    next[j] = t
-    setImpostazioni({ ordineMezziIds: next })
-  }
+  const stazionamenti = impostazioni.stazionamentiMezzo ?? []
 
   const spostaMezzoConDrag = (sourceId: string, targetId: string) => {
     if (!sourceId || !targetId || sourceId === targetId) return
@@ -195,6 +195,13 @@ export function Settings() {
           onClick={() => setTab('generali')}
         >
           GENERALI
+        </button>
+        <button
+          type="button"
+          className={`ares-btn secondary${tab === 'evento' ? ' active' : ''}`}
+          onClick={() => setTab('evento')}
+        >
+          EVENTO
         </button>
         <button
           type="button"
@@ -389,93 +396,6 @@ export function Settings() {
         </section>
       )}
       <section className="ares-settings-entity-block">
-        <h1 className="ares-settings-entity-title">Evento — classificazione e contesto</h1>
-        <div className="ares-settings-entity-grid">
-          <ImpostazioniTextPanel
-            title="Classificazione soccorso"
-            description="Voci del menu a tendina sulla scheda evento."
-            value={impostazioni.classificazioniSoccorso}
-            onSave={(classificazioniSoccorso) =>
-              setImpostazioni({ classificazioniSoccorso })
-            }
-          />
-          <ImpostazioniTextPanel
-            title="Motivo"
-            description="Voci del menu «Motivo» sull’evento."
-            value={impostazioni.motiviSoccorso}
-            onSave={(motiviSoccorso) => setImpostazioni({ motiviSoccorso })}
-          />
-          <ImpostazioniTextPanel
-            title="Meteo"
-            description="Condizioni meteo (menu a tendina)."
-            value={impostazioni.meteoEvento}
-            onSave={(meteoEvento) => setImpostazioni({ meteoEvento })}
-          />
-          <ImpostazioniTextPanel
-            title="Luogo (tipo)"
-            description="Contesto del luogo dell’intervento."
-            value={impostazioni.luoghiEvento}
-            onSave={(luoghiEvento) => setImpostazioni({ luoghiEvento })}
-          />
-          <ImpostazioniTextPanel
-            title="Segnalato da"
-            description="Chi ha segnalato l’evento (menu a tendina)."
-            value={impostazioni.segnalatoDaOpzioni}
-            onSave={(segnalatoDaOpzioni) => setImpostazioni({ segnalatoDaOpzioni })}
-          />
-          <ImpostazioniTextPanel
-            title="Esito missione"
-            description="Voci per la scheda missione (menu a tendina)."
-            value={impostazioni.esitiMissione}
-            onSave={(esitiMissione) => setImpostazioni({ esitiMissione })}
-          />
-        </div>
-        <details className="ares-mission-collapsible">
-          <summary>Dettaglio classificazione (per ogni classificazione soccorso)</summary>
-          <ImpostazioniGerarchichePanel
-            title=""
-            showHeading={false}
-            description="Le righe seguono l’elenco «Classificazione soccorso». Salva dopo aver modificato."
-            genitori={impostazioni.classificazioniSoccorso}
-            gerarchia={impostazioni.dettaglioClassificazioneSoccorso}
-            onSave={(dettaglioClassificazioneSoccorso) =>
-              setImpostazioni({ dettaglioClassificazioneSoccorso })
-            }
-          />
-        </details>
-        <details className="ares-mission-collapsible">
-          <summary>Dettaglio motivo</summary>
-          <ImpostazioniGerarchichePanel
-            title=""
-            showHeading={false}
-            description="Una textarea per ogni valore del menu «Motivo»."
-            genitori={impostazioni.motiviSoccorso}
-            gerarchia={impostazioni.dettaglioMotivoSoccorso}
-            onSave={(dettaglioMotivoSoccorso) =>
-              setImpostazioni({ dettaglioMotivoSoccorso })
-            }
-          />
-        </details>
-        <details className="ares-mission-collapsible">
-          <summary>Dettaglio luogo</summary>
-          <ImpostazioniGerarchichePanel
-            title=""
-            showHeading={false}
-            description="Per ogni tipo di «Luogo», elenco dettagli possibili (uno per riga)."
-            genitori={impostazioni.luoghiEvento}
-            gerarchia={impostazioni.dettaglioLuogoEvento}
-            onSave={(dettaglioLuogoEvento) =>
-              setImpostazioni({ dettaglioLuogoEvento })
-            }
-          />
-        </details>
-      </section>
-        </>
-      )}
-
-      {tab === 'generali' && (
-        <>
-      <section className="ares-settings-entity-block">
         <h1 className="ares-settings-entity-title">Paziente — ospedali e PMA</h1>
         <p className="ares-muted">
           Ospedali per destinazione PS. Le postazioni PMA (nome, indirizzo, staff,
@@ -496,7 +416,96 @@ export function Settings() {
           />
         </div>
       </section>
-      </>
+        </>
+      )}
+
+      {tab === 'evento' && (
+        <>
+          <section className="ares-settings-entity-block">
+            <h1 className="ares-settings-entity-title">Evento — classificazione e contesto</h1>
+            <div className="ares-settings-entity-grid">
+              <ImpostazioniTextPanel
+                title="Classificazione soccorso"
+                description="Voci del menu a tendina sulla scheda evento."
+                value={impostazioni.classificazioniSoccorso}
+                onSave={(classificazioniSoccorso) =>
+                  setImpostazioni({ classificazioniSoccorso })
+                }
+              />
+              <ImpostazioniTextPanel
+                title="Motivo"
+                description="Voci del menu «Motivo» sull’evento."
+                value={impostazioni.motiviSoccorso}
+                onSave={(motiviSoccorso) => setImpostazioni({ motiviSoccorso })}
+              />
+              <ImpostazioniTextPanel
+                title="Meteo"
+                description="Condizioni meteo (menu a tendina)."
+                value={impostazioni.meteoEvento}
+                onSave={(meteoEvento) => setImpostazioni({ meteoEvento })}
+              />
+              <ImpostazioniTextPanel
+                title="Luogo (tipo)"
+                description="Contesto del luogo dell’intervento."
+                value={impostazioni.luoghiEvento}
+                onSave={(luoghiEvento) => setImpostazioni({ luoghiEvento })}
+              />
+              <ImpostazioniTextPanel
+                title="Segnalato da"
+                description="Chi ha segnalato l’evento (menu a tendina)."
+                value={impostazioni.segnalatoDaOpzioni}
+                onSave={(segnalatoDaOpzioni) =>
+                  setImpostazioni({ segnalatoDaOpzioni })
+                }
+              />
+              <ImpostazioniTextPanel
+                title="Esito missione"
+                description="Voci per la scheda missione (menu a tendina)."
+                value={impostazioni.esitiMissione}
+                onSave={(esitiMissione) => setImpostazioni({ esitiMissione })}
+              />
+            </div>
+            <details className="ares-mission-collapsible">
+              <summary>Dettaglio classificazione (per ogni classificazione soccorso)</summary>
+              <ImpostazioniGerarchichePanel
+                title=""
+                showHeading={false}
+                description="Le righe seguono l’elenco «Classificazione soccorso». Salva dopo aver modificato."
+                genitori={impostazioni.classificazioniSoccorso}
+                gerarchia={impostazioni.dettaglioClassificazioneSoccorso}
+                onSave={(dettaglioClassificazioneSoccorso) =>
+                  setImpostazioni({ dettaglioClassificazioneSoccorso })
+                }
+              />
+            </details>
+            <details className="ares-mission-collapsible">
+              <summary>Dettaglio motivo</summary>
+              <ImpostazioniGerarchichePanel
+                title=""
+                showHeading={false}
+                description="Una textarea per ogni valore del menu «Motivo»."
+                genitori={impostazioni.motiviSoccorso}
+                gerarchia={impostazioni.dettaglioMotivoSoccorso}
+                onSave={(dettaglioMotivoSoccorso) =>
+                  setImpostazioni({ dettaglioMotivoSoccorso })
+                }
+              />
+            </details>
+            <details className="ares-mission-collapsible">
+              <summary>Dettaglio luogo</summary>
+              <ImpostazioniGerarchichePanel
+                title=""
+                showHeading={false}
+                description="Per ogni tipo di «Luogo», elenco dettagli possibili (uno per riga)."
+                genitori={impostazioni.luoghiEvento}
+                gerarchia={impostazioni.dettaglioLuogoEvento}
+                onSave={(dettaglioLuogoEvento) =>
+                  setImpostazioni({ dettaglioLuogoEvento })
+                }
+              />
+            </details>
+          </section>
+        </>
       )}
 
       {tab === 'valutazioni' && (
@@ -778,29 +787,105 @@ export function Settings() {
 
       {tab === 'mezzi' && (
         <>
-      <section className="ares-settings-entity-block">
-        <h1 className="ares-settings-entity-title">Mezzo — tipi</h1>
-        <ImpostazioniTextPanel
-          title="Tipi mezzo"
-          description="Compaiono nel menu a tendina in anagrafica mezzo (es. MSB, CMR, MSA). In import Excel, se il tipo non è in elenco viene usato il primo valore qui definito."
-          value={impostazioni.tipiMezzo}
-          onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
-        />
-      </section>
-      <section className="ares-settings-entity-block">
-        <h1 className="ares-settings-entity-title">Mezzi — anagrafica</h1>
+      <section className="ares-settings-entity-panel">
+        <h2>Stazionamenti</h2>
         <p className="ares-muted">
-          Stazionamento: Photon, coordinate manuali o click sulla mappa nel form.{' '}
+          Salva nome e indirizzo (mappa Photon o coordinate) da riusare nel menu del form{' '}
+          <strong>Crea / Modifica mezzo</strong>.
+        </p>
+        <button
+          type="button"
+          className="ares-btn primary"
+          onClick={() => {
+            setEditingStazione(null)
+            setStazModalOpen(true)
+          }}
+        >
+          Aggiungi stazionamento
+        </button>
+        {stazionamenti.length === 0 ? (
+          <p className="ares-muted" style={{ marginTop: 12 }}>
+            Nessuno stazionamento predefinito.
+          </p>
+        ) : (
+          <div className="ares-table-wrap" style={{ marginTop: 12 }}>
+            <table className="ares-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Indirizzo</th>
+                  <th>Coordinate</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {stazionamenti.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.nome}</td>
+                    <td>{s.indirizzo || '—'}</td>
+                    <td className="ares-muted">
+                      {s.lat != null && s.lng != null
+                        ? `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}`
+                        : '—'}
+                    </td>
+                    <td>
+                      <div className="ares-inline">
+                        <button
+                          type="button"
+                          className="ares-btn small secondary"
+                          onClick={() => {
+                            setEditingStazione(s)
+                            setStazModalOpen(true)
+                          }}
+                        >
+                          Modifica
+                        </button>
+                        <button
+                          type="button"
+                          className="ares-btn small danger"
+                          onClick={() => {
+                            if (!window.confirm(`Eliminare «${s.nome}»?`)) return
+                            setImpostazioni({
+                              stazionamentiMezzo: stazionamenti.filter((x) => x.id !== s.id),
+                            })
+                          }}
+                        >
+                          Elimina
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <details className="ares-mission-collapsible">
+        <summary>Tipi mezzo (espandi)</summary>
+        <section className="ares-settings-entity-block" style={{ marginTop: 8 }}>
+          <ImpostazioniTextPanel
+            title="Tipi mezzo"
+            description="Compaiono nel menu a tendina in anagrafica mezzo (es. MSB, CMR, MSA). In import Excel, se il tipo non è in elenco viene usato il primo valore qui definito."
+            value={impostazioni.tipiMezzo}
+            onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
+          />
+        </section>
+      </details>
+      <details className="ares-mission-collapsible">
+        <summary>Mezzi — anagrafica (espandi)</summary>
+      <section className="ares-settings-entity-block" style={{ marginTop: 8 }}>
+        <p className="ares-muted">
+          Stazionamento: Photon, coordinate manuali o click sulla mappa nel form oppure scegli
+          uno stazionamento dall’elenco sopra.{' '}
           <strong>Importa</strong> legge il foglio <strong>EQUIPAGGI</strong> (o il
           primo foglio): la <strong>riga 1</strong> deve essere solo i titoli colonne (non viene
           importata). Colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
           (geocoding), F–Q=equipaggio (autista, capo, socc.1, socc.2), R=stato (DISPONIBILE,
-          OCCUPATO, NON DISPONIBILE). Stessa sigla =
-          sovrascrittura.           L’ordine delle righe (frecce) si ripete nel pannello{' '}
-          <strong>Mezzi</strong> della dashboard. Senza ordine salvato: prima i mezzi{' '}
-          <strong>CRI</strong> (sigla che inizia con «CRI» o tipo «CRI»), con tipi MSB → MSA
-          → resto, poi gli altri mezzi; «Ordine predefinito» ripristina questa logica.
-          Puoi anche riordinare trascinando le righe.
+          OCCUPATO, NON DISPONIBILE). Stessa sigla = sovrascrittura.
+          L’ordine nell’elenco si ripete nel pannello <strong>Mezzi</strong> della dashboard.
+          Senza ordine salvato valgono regole tipo CRI / MSB; «Ordine predefinito» ripristina.
+          Riordina le righe <strong>trascinandole</strong>.
         </p>
         <div className="ares-inline">
           <button
@@ -874,7 +959,9 @@ export function Settings() {
           <table className="ares-mezzi-settings-table">
             <thead>
               <tr>
-                <th className="ares-mezzi-settings-ord-col">Ord.</th>
+                <th className="ares-mezzi-settings-ord-col" title="Trascina la riga per riordinare">
+                  #
+                </th>
                 <th>Sigla</th>
                 <th>Tipo</th>
                 <th>Stato</th>
@@ -885,8 +972,7 @@ export function Settings() {
             </thead>
             <tbody>
               {mezziListaFiltrata.map((m) => {
-                const fullIdx = idsOrdineCompletoMemo.indexOf(m.id)
-                const nOrd = idsOrdineCompletoMemo.length
+                const rank = ordineCorrenteMezzi.indexOf(m.id)
                 return (
                 <tr
                   key={m.id}
@@ -921,38 +1007,11 @@ export function Settings() {
                   }}
                 >
                   <td
-                    className="ares-mezzi-settings-ord-col"
+                    className="ares-mezzi-settings-ord-col ares-muted"
                     data-label="Ordine"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="ares-mezzi-ord-btns">
-                      <button
-                        type="button"
-                        className="ares-btn small secondary"
-                        title="Sposta sopra nell’elenco"
-                        aria-label={`Sposta ${m.sigla} sopra`}
-                        disabled={fullIdx <= 0}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          spostaMezzoInElenco(m.id, -1)
-                        }}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        className="ares-btn small secondary"
-                        title="Sposta sotto nell’elenco"
-                        aria-label={`Sposta ${m.sigla} sotto`}
-                        disabled={fullIdx < 0 || fullIdx >= nOrd - 1}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          spostaMezzoInElenco(m.id, 1)
-                        }}
-                      >
-                        ↓
-                      </button>
-                    </div>
+                    {rank >= 0 ? rank + 1 : '—'}
                   </td>
                   <td data-label="Sigla">
                     <span className="ares-mezzi-settings-sigla">{m.sigla}</span>
@@ -976,45 +1035,9 @@ export function Settings() {
           ) : null}
         </div>
       </section>
+      </details>
       </>
       )}
-
-      <div className="ares-inline">
-        <button
-          type="button"
-          className="ares-btn ghost"
-          onClick={() => {
-            if (
-              !confirm(
-                'Ripristinare solo gli elenchi clinici predefiniti? Utenti, rank, tipi mezzo, ospedali e PMA non verranno toccati.',
-              )
-            )
-              return
-            setImpostazioni({
-              manovreMSB: DEFAULT_IMPOSTAZIONI.manovreMSB,
-              manovreMSA: DEFAULT_IMPOSTAZIONI.manovreMSA,
-              manovrePMA: DEFAULT_IMPOSTAZIONI.manovrePMA,
-              presetDimissione: DEFAULT_IMPOSTAZIONI.presetDimissione,
-              mediciPma: DEFAULT_IMPOSTAZIONI.mediciPma,
-              classificazioniSoccorso:
-                DEFAULT_IMPOSTAZIONI.classificazioniSoccorso,
-              dettaglioClassificazioneSoccorso:
-                DEFAULT_IMPOSTAZIONI.dettaglioClassificazioneSoccorso,
-              motiviSoccorso: DEFAULT_IMPOSTAZIONI.motiviSoccorso,
-              dettaglioMotivoSoccorso:
-                DEFAULT_IMPOSTAZIONI.dettaglioMotivoSoccorso,
-              meteoEvento: DEFAULT_IMPOSTAZIONI.meteoEvento,
-              luoghiEvento: DEFAULT_IMPOSTAZIONI.luoghiEvento,
-              dettaglioLuogoEvento:
-                DEFAULT_IMPOSTAZIONI.dettaglioLuogoEvento,
-              segnalatoDaOpzioni: DEFAULT_IMPOSTAZIONI.segnalatoDaOpzioni,
-              esitiMissione: DEFAULT_IMPOSTAZIONI.esitiMissione,
-            })
-          }}
-        >
-          Ripristina elenchi clinici predefiniti
-        </button>
-      </div>
 
       {tab === 'pma_impostazioni' && <ImpostazioniPmaTab />}
 
@@ -1022,6 +1045,7 @@ export function Settings() {
         open={mezzoModalOpen}
         mezzo={editingMezzo}
         tipiMezzo={tipiMezzoList}
+        stazionamentiPresets={stazionamenti}
         onClose={() => {
           setMezzoModalOpen(false)
           setEditingMezzo(null)
@@ -1060,6 +1084,20 @@ export function Settings() {
               }
             : undefined
         }
+      />
+      <StazionamentoPresetModal
+        open={stazModalOpen}
+        preset={editingStazione}
+        onClose={() => {
+          setStazModalOpen(false)
+          setEditingStazione(null)
+        }}
+        onSave={(preset) => {
+          const sans = editingStazione
+            ? stazionamenti.map((s) => (s.id === preset.id ? preset : s))
+            : [...stazionamenti, preset]
+          setImpostazioni({ stazionamentiMezzo: sans })
+        }}
       />
     </div>
   )

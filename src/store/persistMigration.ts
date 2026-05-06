@@ -8,6 +8,7 @@ import type {
   PMAPostazione,
   PersonaContatto,
   RankUtente,
+  StazionamentoMezzoPreset,
   Valutazione,
   VociPerGenitore,
 } from '../types'
@@ -106,6 +107,25 @@ function asStringArray(value: unknown, fallback: string[]): string[] {
     .filter(Boolean)
 }
 
+function asStazionamentiMezzoPreset(raw: unknown): StazionamentoMezzoPreset[] {
+  if (!Array.isArray(raw)) return []
+  const out: StazionamentoMezzoPreset[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const nome = String(o.nome ?? '').trim()
+    if (!nome) continue
+    out.push({
+      id: String(o.id ?? '').trim() || `staz_${crypto.randomUUID()}`,
+      nome,
+      indirizzo: String(o.indirizzo ?? '').trim(),
+      lat: typeof o.lat === 'number' && Number.isFinite(o.lat) ? o.lat : null,
+      lng: typeof o.lng === 'number' && Number.isFinite(o.lng) ? o.lng : null,
+    })
+  }
+  return out
+}
+
 function migratePostazioniPmaBloc(raw: Partial<Impostazioni> | undefined): PMAPostazione[] {
   const arr = raw?.postazioniPma
   if (Array.isArray(arr) && arr.length > 0) {
@@ -198,6 +218,9 @@ export function migrateImpostazioni(
     utenti,
     modalitaSviluppo: raw?.modalitaSviluppo === true,
     ordineMezziIds: asStringArray(raw?.ordineMezziIds, []),
+    stazionamentiMezzo: Array.isArray(raw?.stazionamentiMezzo)
+      ? asStazionamentiMezzoPreset(raw.stazionamentiMezzo)
+      : DEFAULT_IMPOSTAZIONI.stazionamentiMezzo,
   }
 }
 
