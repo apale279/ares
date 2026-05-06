@@ -30,17 +30,19 @@ export function MezzoDetailModal({ onClose }: { onClose: () => void }) {
           <p>
             Stato: <strong>{mezzo.stato}</strong>
           </p>
-          <label className="ares-check">
-            <input
-              type="checkbox"
-              checked={mezzo.stato === 'NON_DISPONIBILE'}
+          <label>
+            Disponibilita mezzo
+            <select
+              value={mezzo.stato === 'NON_DISPONIBILE' ? 'NON_DISPONIBILE' : 'DISPONIBILE'}
               onChange={(e) =>
                 updateMezzo(mezzo.id, {
-                  stato: e.target.checked ? 'NON_DISPONIBILE' : 'DISPONIBILE',
+                  stato: e.target.value === 'NON_DISPONIBILE' ? 'NON_DISPONIBILE' : 'DISPONIBILE',
                 })
               }
-            />
-            Mezzo non disponibile (guasto / fermo)
+            >
+              <option value="DISPONIBILE">DISPONIBILE</option>
+              <option value="NON_DISPONIBILE">NON DISPONIBILE</option>
+            </select>
           </label>
           <p className="ares-muted">Sigla radio: {mezzo.siglaRadio || '—'}</p>
           <p className="ares-muted">Targa: {mezzo.targa || '—'}</p>

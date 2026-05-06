@@ -6,14 +6,12 @@ import {
   Routes,
   useNavigate,
 } from 'react-router-dom'
-import { useAuth } from './auth/AuthContext'
 import { Dashboard } from './views/Dashboard'
 import { PmaModulo } from './views/PmaModulo'
 import { Settings } from './views/Settings'
 import { Ricerca } from './views/Ricerca'
 import { MezzoVista } from './views/MezzoVista'
 import { Diario } from './views/Diario'
-import { Login } from './views/Login'
 import { EventDetailModal } from './components/EventDetailModal'
 import { MissionDetailModal } from './components/MissionDetailModal'
 import { PatientDetailModal } from './components/PatientDetailModal'
@@ -28,7 +26,6 @@ import {
 } from './store/supabasePersistStorage'
 import type { AppRouteKey } from './types'
 import { appVersionNavLabel } from './utils/appVersionLabel'
-import { isModalitaSviluppoAttiva } from './utils/modalitaSviluppo'
 import { firstAllowedRoutePath, routeAllowedForUser } from './utils/routeAccess'
 import './ares.css'
 
@@ -59,8 +56,7 @@ function GlobalModals() {
 function AppShellRoutes() {
   const navigate = useNavigate()
   const impostazioni = useAresStore((s) => s.impostazioni)
-  const { session, logout } = useAuth()
-  const userId = session?.userId
+  const userId = null
 
   const firstAllowedPath = useMemo(
     () => firstAllowedRoutePath(impostazioni, userId),
@@ -128,16 +124,6 @@ function AppShellRoutes() {
               {syncBusy ? 'SYNC...' : syncLabel}
             </button>
           )}
-          <button
-            type="button"
-            className="ares-btn ghost ares-nav-logout"
-            onClick={() => {
-              logout()
-              navigate('/login', { replace: true })
-            }}
-          >
-            Logout
-          </button>
         </div>
       </nav>
       <main className="ares-main">
@@ -185,7 +171,6 @@ function AppShellRoutes() {
               )
             }
           />
-          <Route path="/login" element={<Navigate to={homePath} replace />} />
           <Route path="*" element={<Navigate to={homePath} replace />} />
         </Routes>
       </main>
@@ -194,30 +179,6 @@ function AppShellRoutes() {
   )
 }
 
-function isSessionValid(
-  s: { userId: string; nomeUtente: string } | null,
-): s is { userId: string; nomeUtente: string } {
-  return (
-    s != null &&
-    Boolean(s.userId.trim()) &&
-    Boolean(s.nomeUtente.trim())
-  )
-}
-
 export default function App() {
-  const { session } = useAuth()
-  const devBypassLogin = useAresStore((s) => isModalitaSviluppoAttiva(s.impostazioni))
-  const sessionOk = isSessionValid(session)
-
-  /** Login obbligatorio salvo modalità sviluppo flaggata in Impostazioni. */
-  if (!sessionOk && !devBypassLogin) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    )
-  }
-
   return <AppShellRoutes />
 }
