@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabaseClient'
  * `mezzi`, `impostazioni`, eventi, ecc.) viene letto/scritto qui; altrimenti solo locale.
  */
 const ROW_ID = 'default'
-const LEGACY_STORAGE_KEY = 'ares-local-storage'
 const BACKUP_STORAGE_KEY = 'ares-supabase-backup'
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -107,12 +106,12 @@ async function upsertPayloadString(raw: string): Promise<void> {
 
 export function createSupabaseJsonStorage(): StateStorageLike {
   return {
-    getItem: async (name: string): Promise<string | null> => {
+    getItem: async (_name: string): Promise<string | null> => {
       if (!isSupabaseConfigured()) return null
 
       const { data, error } = await supabase
         .from('ares_state')
-        .select('payload')
+        .select('payload, updated_at')
         .eq('id', ROW_ID)
         .maybeSingle()
 
@@ -122,20 +121,14 @@ export function createSupabaseJsonStorage(): StateStorageLike {
       }
 
       if (data?.payload != null) {
+        if (data.updated_at) {
+          lastSyncAt = data.updated_at
+          lastRemoteError = null
+          bumpPersistHealthListeners()
+        }
         const p = data.payload as unknown
         if (typeof p === 'string') return p
         return JSON.stringify(p)
-      }
-
-      try {
-        const current = localStorage.getItem(name)
-        if (current) return current
-        const backup = localStorage.getItem(BACKUP_STORAGE_KEY)
-        if (backup) return backup
-        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
-        if (legacy) return legacy
-      } catch {
-        /* ignore */
       }
       return null
     },
@@ -217,13 +210,13 @@ export function shouldSkipRemoteRehydrate(): boolean {
 }
 
 export async function forceSupabaseSync(storageKey: string): Promise<void> {
+  void storageKey
   if (!isSupabaseConfigured()) return
-  const candidate =
-    localStorage.getItem(storageKey) ??
-    localStorage.getItem(BACKUP_STORAGE_KEY) ??
-    localStorage.getItem(LEGACY_STORAGE_KEY)
+  const candidate = pendingValue
   if (!candidate) return
   try {
+    // Cloud-first strict: allow forced sync only after at least one known cloud state in this session.
+    if (!lastSyncAt) return
     await upsertPayloadString(candidate)
   } catch (e) {
     lastRemoteError = e instanceof Error ? e.message : String(e)
