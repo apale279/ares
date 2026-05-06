@@ -1166,6 +1166,50 @@ textarea {
   font-weight: 700;
 }
 
+.ares-mezzi-settings-stato-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ares-mezzi-settings-stato-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ares-mezzi-stato-quick {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ares-mezzi-stato-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.22);
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.ares-mezzi-stato-dot:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ares-mezzi-stato-dot--avail {
+  background: #22c55e;
+}
+
+.ares-mezzi-stato-dot--busy {
+  background: #ef4444;
+}
+
 .ares-mezzi-settings-empty {
   margin: 16px;
   text-align: center;

@@ -36,8 +36,12 @@ import {
   nuovaValutazioneMSB,
   nuovaValutazionePMA,
 } from './valutazioneFactories'
-import { nuovoIdMezzo, nuovoIdNota } from '../utils/ids'
-import { formatoIdSeq, migrateIdSequencer } from '../utils/idSequenziali'
+import { nuovoIdNota } from '../utils/ids'
+import {
+  formatoIdEntita,
+  migrateIdSequencer,
+  sequencerNeedsPatch,
+} from '../utils/idSequenziali'
 import {
   createSupabaseJsonStorage,
   isSupabaseConfigured,
@@ -78,7 +82,13 @@ function patchSeqSeNecessario(
     | 'eventi'
     | 'missioni'
     | 'pazienti'
+    | 'mezzi'
     | 'idSeqSalt'
+    | 'idSaltMezzo'
+    | 'idSaltEvento'
+    | 'idSaltPaziente'
+    | 'idSaltMissione'
+    | 'nextIdMezzo'
     | 'nextIdEvento'
     | 'nextIdMissione'
     | 'nextIdPaziente'
@@ -86,16 +96,35 @@ function patchSeqSeNecessario(
 ): Partial<
   Pick<
     AresState,
-    'idSeqSalt' | 'nextIdEvento' | 'nextIdMissione' | 'nextIdPaziente'
+    | 'idSeqSalt'
+    | 'idSaltMezzo'
+    | 'idSaltEvento'
+    | 'idSaltPaziente'
+    | 'idSaltMissione'
+    | 'nextIdMezzo'
+    | 'nextIdEvento'
+    | 'nextIdMissione'
+    | 'nextIdPaziente'
   >
 > {
-  if (state.idSeqSalt && /^[A-Za-z0-9]{4}$/.test(state.idSeqSalt)) return {}
-  return migrateIdSequencer(state.eventi, state.missioni, state.pazienti, {
-    idSeqSalt: state.idSeqSalt,
-    nextIdEvento: state.nextIdEvento,
-    nextIdMissione: state.nextIdMissione,
-    nextIdPaziente: state.nextIdPaziente,
-  })
+  if (!sequencerNeedsPatch(state)) return {}
+  return migrateIdSequencer(
+    state.eventi,
+    state.missioni,
+    state.pazienti,
+    state.mezzi,
+    {
+      idSeqSalt: state.idSeqSalt,
+      idSaltMezzo: state.idSaltMezzo,
+      idSaltEvento: state.idSaltEvento,
+      idSaltPaziente: state.idSaltPaziente,
+      idSaltMissione: state.idSaltMissione,
+      nextIdMezzo: state.nextIdMezzo,
+      nextIdEvento: state.nextIdEvento,
+      nextIdMissione: state.nextIdMissione,
+      nextIdPaziente: state.nextIdPaziente,
+    },
+  )
 }
 
 export interface AresState {
@@ -106,11 +135,20 @@ export interface AresState {
   pazienti: Paziente[]
   note: Nota[]
   valutazioni: Valutazione[]
-  /** Suffisso 4 caratteri condiviso per ID sequenziali E_/M_/P_ */
+  /** Metadati legacy meta export (primi caratteri / vecchio formato) */
   idSeqSalt: string
+  idSaltMezzo: string
+  idSaltEvento: string
+  idSaltPaziente: string
+  idSaltMissione: string
+  nextIdMezzo: number
   nextIdEvento: number
   nextIdMissione: number
   nextIdPaziente: number
+
+  resetContatoreSeqMezzo: () => void
+  resetContatoreSeqEvento: () => void
+  resetContatoreSeqPaziente: () => void
   layout: LayoutPannelli
   /** Per migrazione layout a schermo intero (incrementa LAYOUT_VERSION) */
   layoutVersion: number
@@ -208,6 +246,11 @@ export const useAresStore = create<AresState>()(
       note: [],
       valutazioni: [],
       idSeqSalt: '',
+      idSaltMezzo: '',
+      idSaltEvento: '',
+      idSaltPaziente: '',
+      idSaltMissione: '',
+      nextIdMezzo: 1,
       nextIdEvento: 1,
       nextIdMissione: 1,
       nextIdPaziente: 1,
@@ -241,6 +284,10 @@ export const useAresStore = create<AresState>()(
         set({ layout: nextLayout })
         writeLocalLayout(nextLayout, LAYOUT_VERSION)
       },
+
+      resetContatoreSeqMezzo: () => set({ nextIdMezzo: 1 }),
+      resetContatoreSeqEvento: () => set({ nextIdEvento: 1 }),
+      resetContatoreSeqPaziente: () => set({ nextIdPaziente: 1 }),
 
       setImpostazioni: (p) =>
         set((s) => ({
@@ -281,7 +328,13 @@ export const useAresStore = create<AresState>()(
         }),
 
       addMezzo: (partial) => {
-        const id = nuovoIdMezzo()
+        let s0 = get()
+        const seqPz = patchSeqSeNecessario(s0)
+        if (Object.keys(seqPz).length) {
+          set(seqPz)
+          s0 = get()
+        }
+        const id = formatoIdEntita('M', s0.idSaltMezzo, s0.nextIdMezzo)
         const st: StatoMezzo =
           partial.stato === 'OCCUPATO' ||
           partial.stato === 'DISPONIBILE' ||
@@ -300,7 +353,10 @@ export const useAresStore = create<AresState>()(
           equipaggio: partial.equipaggio ?? equipaggioVuoto(),
           stato: st,
         }
-        set((s) => ({ mezzi: [...s.mezzi, mezzo] }))
+        set((s) => ({
+          mezzi: [...s.mezzi, mezzo],
+          nextIdMezzo: s.nextIdMezzo + 1,
+        }))
         return id
       },
 
@@ -325,7 +381,7 @@ export const useAresStore = create<AresState>()(
           set(seq0)
           s0 = get()
         }
-        const id = formatoIdSeq('E', s0.idSeqSalt, s0.nextIdEvento)
+        const id = formatoIdEntita('E', s0.idSaltEvento, s0.nextIdEvento)
         const evento: Evento = {
           id,
           createdAt: nowIso(),
@@ -423,7 +479,7 @@ export const useAresStore = create<AresState>()(
           set(sSeq)
           s = get()
         }
-        const id = formatoIdSeq('M', s.idSeqSalt, s.nextIdMissione)
+        const id = formatoIdEntita('MS', s.idSaltMissione, s.nextIdMissione)
         const ts = nowIso()
         const log: MissionStateLog = { stato: 'ALLERTARE', at: ts }
         const missione: Missione = {
@@ -627,7 +683,7 @@ export const useAresStore = create<AresState>()(
           set(seqPz)
           s = get()
         }
-        const id = formatoIdSeq('P', s.idSeqSalt, s.nextIdPaziente)
+        const id = formatoIdEntita('P', s.idSaltPaziente, s.nextIdPaziente)
         const p: Paziente = {
           id,
           eventoId,
@@ -773,6 +829,11 @@ export const useAresStore = create<AresState>()(
         note: s.note,
         valutazioni: s.valutazioni,
         idSeqSalt: s.idSeqSalt,
+        idSaltMezzo: s.idSaltMezzo,
+        idSaltEvento: s.idSaltEvento,
+        idSaltPaziente: s.idSaltPaziente,
+        idSaltMissione: s.idSaltMissione,
+        nextIdMezzo: s.nextIdMezzo,
         nextIdEvento: s.nextIdEvento,
         nextIdMissione: s.nextIdMissione,
         nextIdPaziente: s.nextIdPaziente,
@@ -808,8 +869,19 @@ export const useAresStore = create<AresState>()(
           out.eventi ?? [],
           out.missioni ?? [],
           out.pazienti ?? [],
+          out.mezzi ?? [],
           {
             idSeqSalt: (p as Partial<AresState>).idSeqSalt ?? out.idSeqSalt,
+            idSaltMezzo:
+              (p as Partial<AresState>).idSaltMezzo ?? out.idSaltMezzo,
+            idSaltEvento:
+              (p as Partial<AresState>).idSaltEvento ?? out.idSaltEvento,
+            idSaltPaziente:
+              (p as Partial<AresState>).idSaltPaziente ?? out.idSaltPaziente,
+            idSaltMissione:
+              (p as Partial<AresState>).idSaltMissione ?? out.idSaltMissione,
+            nextIdMezzo:
+              (p as Partial<AresState>).nextIdMezzo ?? out.nextIdMezzo,
             nextIdEvento:
               (p as Partial<AresState>).nextIdEvento ?? out.nextIdEvento,
             nextIdMissione:

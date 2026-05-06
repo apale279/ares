@@ -18,6 +18,11 @@ export type AresDatabaseExportSnapshot = {
   note: Nota[]
   valutazioni: Valutazione[]
   idSeqSalt: string
+  idSaltMezzo: string
+  idSaltEvento: string
+  idSaltPaziente: string
+  idSaltMissione: string
+  nextIdMezzo: number
   nextIdEvento: number
   nextIdMissione: number
   nextIdPaziente: number
@@ -58,7 +63,12 @@ function impostazioniRows(imp: Impostazioni): Record<string, string>[] {
 
 function metaRows(s: AresDatabaseExportSnapshot): Record<string, string>[] {
   return [
-    { chiave: 'idSeqSalt', valore: s.idSeqSalt },
+    { chiave: 'idSeqSalt_legacy', valore: s.idSeqSalt },
+    { chiave: 'idSaltMezzo', valore: s.idSaltMezzo },
+    { chiave: 'idSaltEvento', valore: s.idSaltEvento },
+    { chiave: 'idSaltPaziente', valore: s.idSaltPaziente },
+    { chiave: 'idSaltMissione', valore: s.idSaltMissione },
+    { chiave: 'nextIdMezzo', valore: String(s.nextIdMezzo) },
     { chiave: 'nextIdEvento', valore: String(s.nextIdEvento) },
     { chiave: 'nextIdMissione', valore: String(s.nextIdMissione) },
     { chiave: 'nextIdPaziente', valore: String(s.nextIdPaziente) },

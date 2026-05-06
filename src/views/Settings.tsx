@@ -14,7 +14,7 @@ import { StazionamentoPresetModal } from '../components/StazionamentoPresetModal
 import { ImpostazioniGerarchichePanel } from '../components/ImpostazioniGerarchichePanel'
 import { useAuth } from '../auth/AuthContext'
 import { useAresStore } from '../store/aresStore'
-import { isAdminUser } from '../utils/isAdminUser'
+import { hasFullAppPrivileges, isAdminUser } from '../utils/isAdminUser'
 import { isModalitaSviluppoAttiva } from '../utils/modalitaSviluppo'
 import {
   mezziInOrdinePersistito,
@@ -117,6 +117,18 @@ export function Settings() {
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
   const ranks: RankUtente[] = impostazioni.rankUtente ?? []
   const utenti: Utente[] = impostazioni.utenti ?? []
+
+  const nextIdMezzo = useAresStore((s) => s.nextIdMezzo)
+  const nextIdEventoNum = useAresStore((s) => s.nextIdEvento)
+  const nextIdPazienteNum = useAresStore((s) => s.nextIdPaziente)
+  const nextIdMissioneNum = useAresStore((s) => s.nextIdMissione)
+  const idSaltMezzo = useAresStore((s) => s.idSaltMezzo)
+  const idSaltEvento = useAresStore((s) => s.idSaltEvento)
+  const idSaltPaziente = useAresStore((s) => s.idSaltPaziente)
+  const idSaltMissione = useAresStore((s) => s.idSaltMissione)
+  const resetContatoreSeqMezzo = useAresStore((s) => s.resetContatoreSeqMezzo)
+  const resetContatoreSeqEvento = useAresStore((s) => s.resetContatoreSeqEvento)
+  const resetContatoreSeqPaziente = useAresStore((s) => s.resetContatoreSeqPaziente)
 
   const showModalitaSviluppoRow =
     isAdminUser(impostazioni, session?.userId) ||
@@ -268,6 +280,93 @@ export function Settings() {
       {tab === 'generali' && (
         <>
       <DownloadFullDatabaseButton />
+
+      {hasFullAppPrivileges(impostazioni, session?.userId) && (
+        <section className="ares-settings-entity-panel">
+          <h2>Numerazione ID (mezzi · eventi · pazienti)</h2>
+          <p className="ares-muted">
+            Nuovi ID: prefisso, blocco alfanumerico di 6 caratteri fisso finché non lo
+            rigeneri dai dati export, poi numero sequenziale.{' '}
+            <strong>Esempio mezzo:</strong> M_<code>{idSaltMezzo || '⋯⋯⋯⋯⋯⋯'}</code>_
+            {nextIdMezzo}.
+          </p>
+          <ul className="ares-list-compact ares-muted">
+            <li>
+              <strong>Mezzi:</strong> M_<code>{idSaltMezzo || '⋯'}</code> · prossimo
+              numero: <strong>{nextIdMezzo}</strong>
+            </li>
+            <li>
+              <strong>Eventi:</strong> E_<code>{idSaltEvento || '⋯'}</code> · prossimo:{' '}
+              <strong>{nextIdEventoNum}</strong>
+            </li>
+            <li>
+              <strong>Pazienti:</strong> P_<code>{idSaltPaziente || '⋯'}</code> ·
+              prossimo: <strong>{nextIdPazienteNum}</strong>
+            </li>
+            <li>
+              <strong>Missioni</strong> (nuove):{' '}
+              <code>
+                {`MS_${idSaltMissione || '⋯'}_${nextIdMissioneNum}`}
+              </code>{' '}
+              — prefisso <strong>MS_</strong> per non confonderle con gli ID mezzo (
+              <strong>M_</strong>
+              ).
+            </li>
+          </ul>
+          <p className="ares-muted">
+            Ripristino contatore da 1: rischio collisione se nel DB esistono già ID con quel
+            blocco numerico basso — usalo solo se sai cosa fai.
+          </p>
+          <div className="ares-inline">
+            <button
+              type="button"
+              className="ares-btn secondary"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Azzerare il contatore sequenziale mezzi da 1? (ID esistenti restano)',
+                  )
+                )
+                  return
+                resetContatoreSeqMezzo()
+              }}
+            >
+              Reset contatore mezzi → 1
+            </button>
+            <button
+              type="button"
+              className="ares-btn secondary"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Azzerare il contatore sequenziale eventi da 1? (ID esistenti restano)',
+                  )
+                )
+                  return
+                resetContatoreSeqEvento()
+              }}
+            >
+              Reset contatore eventi → 1
+            </button>
+            <button
+              type="button"
+              className="ares-btn secondary"
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Azzerare il contatore sequenziale pazienti da 1? (ID esistenti restano)',
+                  )
+                )
+                  return
+                resetContatoreSeqPaziente()
+              }}
+            >
+              Reset contatore pazienti → 1
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="ares-settings-entity-panel">
         <h2>Backup cloud (manuale)</h2>
         <p className="ares-muted">
@@ -1030,7 +1129,43 @@ export function Settings() {
                     <span className="ares-mezzi-settings-sigla">{m.sigla}</span>
                   </td>
                   <td data-label="Tipo">{m.tipo}</td>
-                  <td data-label="Stato">{m.stato}</td>
+                  <td
+                    data-label="Stato"
+                    className="ares-mezzi-settings-stato-cell"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="ares-mezzi-settings-stato-text">{m.stato}</span>
+                    <span className="ares-mezzi-stato-quick">
+                      <button
+                        type="button"
+                        title="Disp."
+                        aria-label={`${m.sigla}: disponibile`}
+                        className="ares-mezzi-stato-dot ares-mezzi-stato-dot--avail"
+                        disabled={
+                          m.stato === 'OCCUPATO' ||
+                          m.stato === 'DISPONIBILE'
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          updateMezzo(m.id, { stato: 'DISPONIBILE' })
+                        }}
+                      />
+                      <button
+                        type="button"
+                        title="Non disp."
+                        aria-label={`${m.sigla}: non disponibile`}
+                        className="ares-mezzi-stato-dot ares-mezzi-stato-dot--busy"
+                        disabled={
+                          m.stato === 'OCCUPATO' ||
+                          m.stato === 'NON_DISPONIBILE'
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          updateMezzo(m.id, { stato: 'NON_DISPONIBILE' })
+                        }}
+                      />
+                    </span>
+                  </td>
                   <td data-label="Radio">{m.siglaRadio || '—'}</td>
                   <td data-label="Targa">{m.targa || '—'}</td>
                   <td data-label="Stazionamento">{m.stazionamento || '—'}</td>

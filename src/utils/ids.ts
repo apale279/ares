@@ -18,10 +18,6 @@ export function nuovoIdMissione(idsEsistenti: Set<string>): string {
   return id
 }
 
-export function nuovoIdMezzo(): string {
-  return `mezzo_${crypto.randomUUID()}`
-}
-
 export function nuovoIdPaziente(idsEsistenti: Set<string>): string {
   let id: string
   do {
