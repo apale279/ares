@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Navigate,
   NavLink,
@@ -21,12 +21,6 @@ import { PatientDetailModal } from './components/PatientDetailModal'
 import { MezzoDetailModal } from './components/MezzoDetailModal'
 import { PersistenceStatusDot } from './components/PersistenceStatusDot'
 import { useAresStore } from './store/aresStore'
-import {
-  discardDebouncedPendingRemoteWrite,
-  getLastSyncAt,
-  isSupabaseConfigured,
-  onSyncUpdate,
-} from './store/supabasePersistStorage'
 import type { AppRouteKey } from './types'
 import { appVersionNavLabel } from './utils/appVersionLabel'
 import { firstAllowedRoutePath, routeAllowedForUser } from './utils/routeAccess'
@@ -72,16 +66,6 @@ function AppShellRoutes() {
     return firstAllowedPath
   }, [impostazioni, userId, firstAllowedPath])
 
-  const [syncBusy, setSyncBusy] = useState(false)
-  const [lastSync, setLastSync] = useState<string | null>(() => getLastSyncAt())
-  const syncEnabled = isSupabaseConfigured()
-
-  useEffect(() => onSyncUpdate((iso) => setLastSync(iso)), [])
-
-  const syncLabel = lastSync
-    ? `SYNC ${new Date(lastSync).toLocaleString('it-IT')}`
-    : 'SYNC --'
-
   const canRoute = useMemo(
     () => (k: AppRouteKey) => routeAllowedForUser(impostazioni, userId, k),
     [impostazioni, userId],
@@ -111,29 +95,6 @@ function AppShellRoutes() {
           <span className="ares-muted" title="Utente attualmente autenticato">
             Utente: {session?.nomeUtente ?? '—'}
           </span>
-          {syncEnabled && (
-            <button
-              type="button"
-              className="ares-nav-sync"
-              disabled={syncBusy}
-              title={
-                'Scarica da Supabase l’ultimo stato salvato (come aggiorna pagina sul dato centralizzato). ' +
-                  'Non forza una riscrittura sul cloud.'
-              }
-              onClick={async () => {
-                if (!useAresStore.persist.getOptions().name) return
-                setSyncBusy(true)
-                try {
-                  discardDebouncedPendingRemoteWrite()
-                  await useAresStore.persist.rehydrate()
-                } finally {
-                  setSyncBusy(false)
-                }
-              }}
-            >
-              {syncBusy ? 'SYNC...' : syncLabel}
-            </button>
-          )}
           <button
             type="button"
             className="ares-btn ghost ares-nav-logout"
