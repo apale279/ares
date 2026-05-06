@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Mezzo } from '../types'
+import type { Mezzo, StatoMezzo } from '../types'
 import { geocodeIndirizzo } from '../utils/geocode'
 import { copiaEquipaggio, equipaggioVuoto } from '../utils/equipaggio'
 import { MezzoStazionamentoMap } from './MezzoStazionamentoMap'
@@ -16,11 +16,11 @@ export function MezzoFormModal({
   open: boolean
   mezzo: Mezzo | null
   tipiMezzo: string[]
-  onSave: (m: Omit<Mezzo, 'id' | 'stato'> & { id?: string }) => void
+  onSave: (m: Omit<Mezzo, 'id'> & { id?: string }) => void
   onDelete?: () => void
   onClose: () => void
 }) {
-  const empty: Omit<Mezzo, 'id' | 'stato'> = {
+  const empty: Omit<Mezzo, 'id'> = {
     tipo: tipiMezzo[0] ?? '',
     sigla: '',
     siglaRadio: '',
@@ -29,9 +29,10 @@ export function MezzoFormModal({
     stazionamentoLat: null,
     stazionamentoLng: null,
     equipaggio: equipaggioVuoto(),
+    stato: 'DISPONIBILE',
   }
 
-  const [form, setForm] = useState<Omit<Mezzo, 'id' | 'stato'>>(empty)
+  const [form, setForm] = useState<Omit<Mezzo, 'id'>>(empty)
   const [geoBusy, setGeoBusy] = useState(false)
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export function MezzoFormModal({
         stazionamentoLat: mezzo.stazionamentoLat ?? null,
         stazionamentoLng: mezzo.stazionamentoLng ?? null,
         equipaggio: copiaEquipaggio(mezzo.equipaggio),
+        stato: mezzo.stato,
       })
     } else {
       setForm({
@@ -123,6 +125,18 @@ export function MezzoFormModal({
                 value={form.targa}
                 onChange={(e) => setForm((f) => ({ ...f, targa: e.target.value }))}
               />
+            </label>
+            <label>
+              Stato mezzo
+              <select
+                value={form.stato}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, stato: e.target.value as StatoMezzo }))
+                }
+              >
+                <option value="DISPONIBILE">DISPONIBILE</option>
+                <option value="NON_DISPONIBILE">NON DISPONIBILE</option>
+              </select>
             </label>
             <label className="full">
               Stazionamento (Photon)

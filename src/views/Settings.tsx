@@ -95,6 +95,7 @@ export function Settings() {
   const [backupBusy, setBackupBusy] = useState(false)
   const [backups, setBackups] = useState<ManualBackupRecord[]>([])
   const [backupNameDrafts, setBackupNameDrafts] = useState<Record<string, string>>({})
+  const [dragMezzoId, setDragMezzoId] = useState<string | null>(null)
 
   const tipiMezzoList =
     impostazioni.tipiMezzo.length > 0 ? impostazioni.tipiMezzo : ['MSB']
@@ -141,6 +142,18 @@ export function Settings() {
     const t = next[i]!
     next[i] = next[j]!
     next[j] = t
+    setImpostazioni({ ordineMezziIds: next })
+  }
+
+  const spostaMezzoConDrag = (sourceId: string, targetId: string) => {
+    if (!sourceId || !targetId || sourceId === targetId) return
+    const cur = ordineMezziCompleto(mezzi, impostazioni.ordineMezziIds)
+    const from = cur.indexOf(sourceId)
+    const to = cur.indexOf(targetId)
+    if (from < 0 || to < 0) return
+    const next = [...cur]
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved!)
     setImpostazioni({ ordineMezziIds: next })
   }
 
@@ -787,6 +800,7 @@ export function Settings() {
           <strong>Mezzi</strong> della dashboard. Senza ordine salvato: prima i mezzi{' '}
           <strong>CRI</strong> (sigla che inizia con «CRI» o tipo «CRI»), con tipi MSB → MSA
           → resto, poi gli altri mezzi; «Ordine predefinito» ripristina questa logica.
+          Puoi anche riordinare trascinando le righe.
         </p>
         <div className="ares-inline">
           <button
@@ -879,6 +893,21 @@ export function Settings() {
                   className="ares-mezzi-settings-row"
                   role="button"
                   tabIndex={0}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragMezzoId(m.id)
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    if (dragMezzoId) spostaMezzoConDrag(dragMezzoId, m.id)
+                    setDragMezzoId(null)
+                  }}
+                  onDragEnd={() => setDragMezzoId(null)}
                   onClick={() => {
                     setEditingMezzo(m)
                     setMezzoModalOpen(true)
@@ -1004,6 +1033,7 @@ export function Settings() {
               sigla: payload.sigla,
               siglaRadio: payload.siglaRadio,
               targa: payload.targa,
+              stato: payload.stato,
               stazionamento: payload.stazionamento,
               stazionamentoLat: payload.stazionamentoLat,
               stazionamentoLng: payload.stazionamentoLng,
@@ -1015,6 +1045,7 @@ export function Settings() {
               sigla: payload.sigla,
               siglaRadio: payload.siglaRadio,
               targa: payload.targa,
+              stato: payload.stato,
               stazionamento: payload.stazionamento,
               stazionamentoLat: payload.stazionamentoLat,
               stazionamentoLng: payload.stazionamentoLng,
