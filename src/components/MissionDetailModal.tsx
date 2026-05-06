@@ -94,7 +94,6 @@ export function MissionDetailModal({
   })
 
   const trattaById = new Map((missione.tratte ?? []).map((t) => [t.id, t]))
-
   return (
     <div
       className="ares-modal-backdrop ares-modal-stack"
@@ -102,7 +101,7 @@ export function MissionDetailModal({
       onClick={onClose}
     >
       <div
-        className="ares-modal ares-modal--narrow"
+        className="ares-modal ares-modal--mission-wide"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
@@ -114,261 +113,275 @@ export function MissionDetailModal({
           </button>
         </header>
         <div className="ares-modal-scroll">
-          <p className="ares-muted">
-            Evento:{' '}
-            <button
-              type="button"
-              className="ares-link-mission"
-              onClick={() => {
-                openModalMissione(null)
-                openModalEvento(missione.eventoId)
-              }}
-            >
-              {missione.eventoId}
-            </button>
-            {evento && ` · ${shortAddress(evento.indirizzo) || '—'}`}
-          </p>
-          <p className="ares-muted">Codice missione: {missione.codice}</p>
-          <p className="ares-muted">
-            Mezzo: {mezzo?.sigla ?? missione.mezzoId} ({mezzo?.tipo ?? '—'})
-          </p>
-          <h3>Pazienti trasportati da questo mezzo sull&apos;evento</h3>
-          {pazientiTrasportati.length === 0 ? (
-            <p className="ares-muted">Nessun paziente assegnato.</p>
-          ) : (
-            <ul className="ares-list-compact">
-              {pazientiTrasportati.map((p) => (
-                <li key={p.id}>
-                  {p.id} · {[p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza anagrafica'}
-                </li>
-              ))}
-            </ul>
-          )}
-          <p>
-            Stato attuale:{' '}
-            <strong>{LABEL_STATO_MISSIONE[missione.stato]}</strong>
-          </p>
+          <div className="ares-modal-mission-grid">
+            <div className="ares-modal-mission-col">
+              <p className="ares-muted">
+                Evento:{' '}
+                <button
+                  type="button"
+                  className="ares-link-mission"
+                  onClick={() => {
+                    openModalMissione(null)
+                    openModalEvento(missione.eventoId)
+                  }}
+                >
+                  {missione.eventoId}
+                </button>
+                {evento && ` · ${shortAddress(evento.indirizzo) || '—'}`}
+              </p>
+              <p className="ares-muted">Codice missione: {missione.codice}</p>
+              <p className="ares-muted">
+                Mezzo: {mezzo?.sigla ?? missione.mezzoId} ({mezzo?.tipo ?? '—'})
+              </p>
+              <h3>Pazienti trasportati da questo mezzo sull&apos;evento</h3>
+              {pazientiTrasportati.length === 0 ? (
+                <p className="ares-muted">Nessun paziente assegnato.</p>
+              ) : (
+                <ul className="ares-list-compact">
+                  {pazientiTrasportati.map((p) => (
+                    <li key={p.id}>
+                      {p.id} ·{' '}
+                      {[p.nome, p.cognome].filter(Boolean).join(' ') || 'Senza anagrafica'}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p>
+                Stato attuale:{' '}
+                <strong>{LABEL_STATO_MISSIONE[missione.stato]}</strong>
+              </p>
 
-          <label className="full">
-            Esito missione
-            <select
-              value={missione.esitoMissione}
-              onChange={(e) =>
-                updateMissione(missione.id, { esitoMissione: e.target.value })
-              }
-            >
-              <option value="">—</option>
-              {impostazioni.esitiMissione.map((x) => (
-                <option key={x} value={x}>
-                  {x}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="full">
-            Note missione
-            <textarea
-              rows={4}
-              value={missione.noteMissione}
-              onChange={(e) =>
-                updateMissione(missione.id, { noteMissione: e.target.value })
-              }
-            />
-          </label>
+              <details className="ares-mission-collapsible" open>
+                <summary>Equipaggio (alla creazione missione)</summary>
+                <table className="ares-table ares-table-compact">
+                  <tbody>
+                    <RowEq label="Autista" p={eq.autista} />
+                    <RowEq label="Capo equipaggio / medico" p={eq.capoEquipaggio} />
+                    <RowEq label="Soccorritore 1" p={eq.soccorritore1} />
+                    <RowEq label="Soccorritore 2" p={eq.soccorritore2} />
+                  </tbody>
+                </table>
+              </details>
+            </div>
 
-          <details className="ares-mission-collapsible">
-            <summary>Equipaggio (alla creazione missione)</summary>
-            <table className="ares-table ares-table-compact">
-              <tbody>
-                <RowEq label="Autista" p={eq.autista} />
-                <RowEq label="Capo equipaggio / medico" p={eq.capoEquipaggio} />
-                <RowEq label="Soccorritore 1" p={eq.soccorritore1} />
-                <RowEq label="Soccorritore 2" p={eq.soccorritore2} />
-              </tbody>
-            </table>
-          </details>
-
-          <h3>Cronologia stati e tratte</h3>
-          <p className="ares-muted">
-            Elenco unico ordinato per data/ora. Puoi correggere gli orari degli stati; per
-            saltare passaggi intermedi usa «Forza stato» sotto.
-          </p>
-          <ol className="ares-timeline">
-            {timelineUnified.map((item) =>
-              item.kind === 'state' ? (
-                <li key={item.key}>
-                  <div className="ares-form-grid tight" style={{ marginTop: 4 }}>
-                    <strong className="full">{LABEL_STATO_MISSIONE[item.stato]}</strong>
-                    <label className="full">
-                      Data/ora
-                      <input
-                        type="datetime-local"
-                        value={item.at.slice(0, 16)}
-                        onChange={(e) =>
-                          patchMissioneStatoHistoryAt(
-                            missione.id,
-                            item.histIndex,
-                            new Date(e.target.value).toISOString(),
+            <div className="ares-modal-mission-col">
+              <h3>Cronologia stati e tratte</h3>
+              <p className="ares-muted">
+                Elenco ordinato per data/ora. Correggi gli orari degli stati; per saltare
+                passaggi intermedi usa «Applica stato».
+              </p>
+              <ol className="ares-timeline">
+                {timelineUnified.map((item) =>
+                  item.kind === 'state' ? (
+                    <li key={item.key}>
+                      <div className="ares-form-grid tight" style={{ marginTop: 4 }}>
+                        <strong className="full">
+                          {LABEL_STATO_MISSIONE[item.stato]}
+                        </strong>
+                        <label className="full">
+                          Data/ora
+                          <input
+                            type="datetime-local"
+                            value={item.at.slice(0, 16)}
+                            onChange={(e) =>
+                              patchMissioneStatoHistoryAt(
+                                missione.id,
+                                item.histIndex,
+                                new Date(e.target.value).toISOString(),
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    </li>
+                  ) : (
+                    <li key={item.key}>
+                      <button
+                        type="button"
+                        className="ares-link-mission"
+                        onClick={() =>
+                          setTrattaOpen((id) =>
+                            id === item.trattaId ? null : item.trattaId ?? null,
                           )
                         }
-                      />
-                    </label>
-                  </div>
-                </li>
-              ) : (
-                <li key={item.key}>
-                  <button
-                    type="button"
-                    className="ares-link-mission"
-                    onClick={() =>
-                      setTrattaOpen((id) =>
-                        id === item.trattaId ? null : item.trattaId,
-                      )
+                      >
+                        {item.titolo}
+                      </button>
+                      <span className="ares-muted"> — {formatDataOra(item.at)}</span>
+                      {item.trattaId && trattaOpen === item.trattaId
+                        ? (() => {
+                            const t = trattaById.get(item.trattaId)
+                            if (!t) return null
+                            return (
+                              <div className="ares-form-grid tight" style={{ marginTop: 8 }}>
+                                <label className="full">
+                                  Data/ora
+                                  <input
+                                    type="datetime-local"
+                                    value={t.timestamp.slice(0, 16)}
+                                    onChange={(e) =>
+                                      updateTrattaMissione(missione.id, t.id, {
+                                        timestamp: new Date(
+                                          e.target.value,
+                                        ).toISOString(),
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="full">
+                                  Titolo
+                                  <input
+                                    value={t.titolo}
+                                    onChange={(e) =>
+                                      updateTrattaMissione(missione.id, t.id, {
+                                        titolo: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="full">
+                                  Destinazione
+                                  <input
+                                    value={t.destinazione}
+                                    onChange={(e) =>
+                                      updateTrattaMissione(missione.id, t.id, {
+                                        destinazione: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="full">
+                                  Descrizione
+                                  <textarea
+                                    rows={2}
+                                    value={t.descrizione}
+                                    onChange={(e) =>
+                                      updateTrattaMissione(missione.id, t.id, {
+                                        descrizione: e.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  className="ares-btn small danger"
+                                  onClick={() => {
+                                    deleteTrattaMissione(missione.id, t.id)
+                                    setTrattaOpen((id) =>
+                                      id === t.id ? null : id,
+                                    )
+                                  }}
+                                >
+                                  Elimina tratta
+                                </button>
+                              </div>
+                            )
+                          })()
+                        : null}
+                    </li>
+                  ),
+                )}
+              </ol>
+
+              <button
+                type="button"
+                className="ares-btn secondary"
+                style={{ marginTop: 8 }}
+                onClick={() => addTrattaMissione(missione.id)}
+              >
+                Aggiungi tratta
+              </button>
+
+              <div className="ares-form-grid tight" style={{ marginTop: 16 }}>
+                <label className="full">
+                  Forza stato (salta stati intermedi)
+                  <select
+                    value={forzaTarget}
+                    onChange={(e) =>
+                      setForzaTarget(e.target.value as StatoMissione | '')
                     }
                   >
-                    {item.titolo}
-                  </button>
-                  <span className="ares-muted">
-                    {' '}
-                    — {formatDataOra(item.at)}
-                  </span>
-                  {item.trattaId && trattaOpen === item.trattaId ? (
-                    (() => {
-                      const t = trattaById.get(item.trattaId)
-                      if (!t) return null
-                      return (
-                        <div className="ares-form-grid tight" style={{ marginTop: 8 }}>
-                          <label className="full">
-                            Data/ora
-                            <input
-                              type="datetime-local"
-                              value={t.timestamp.slice(0, 16)}
-                              onChange={(e) =>
-                                updateTrattaMissione(missione.id, t.id, {
-                                  timestamp: new Date(e.target.value).toISOString(),
-                                })
-                              }
-                            />
-                          </label>
-                          <label className="full">
-                            Titolo
-                            <input
-                              value={t.titolo}
-                              onChange={(e) =>
-                                updateTrattaMissione(missione.id, t.id, {
-                                  titolo: e.target.value,
-                                })
-                              }
-                            />
-                          </label>
-                          <label className="full">
-                            Destinazione
-                            <input
-                              value={t.destinazione}
-                              onChange={(e) =>
-                                updateTrattaMissione(missione.id, t.id, {
-                                  destinazione: e.target.value,
-                                })
-                              }
-                            />
-                          </label>
-                          <label className="full">
-                            Descrizione
-                            <textarea
-                              rows={2}
-                              value={t.descrizione}
-                              onChange={(e) =>
-                                updateTrattaMissione(missione.id, t.id, {
-                                  descrizione: e.target.value,
-                                })
-                              }
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="ares-btn small danger"
-                            onClick={() => {
-                              deleteTrattaMissione(missione.id, t.id)
-                              setTrattaOpen((id) => (id === t.id ? null : id))
-                            }}
-                          >
-                            Elimina tratta
-                          </button>
-                        </div>
-                      )
-                    })()
-                  ) : null}
-                </li>
-              ),
-            )}
-          </ol>
-
-          <button
-            type="button"
-            className="ares-btn secondary"
-            style={{ marginTop: 8 }}
-            onClick={() => addTrattaMissione(missione.id)}
-          >
-            Aggiungi tratta
-          </button>
-
-          <div className="ares-form-grid tight" style={{ marginTop: 16 }}>
-            <label className="full">
-              Forza stato (salta stati intermedi)
-              <select
-                value={forzaTarget}
-                onChange={(e) =>
-                  setForzaTarget(e.target.value as StatoMissione | '')
-                }
-              >
-                <option value="">— Scegli stato —</option>
-                {statiForcabili.map((s) => (
-                  <option key={s} value={s}>
-                    {LABEL_STATO_MISSIONE[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="ares-inline ares-modal-actions" style={{ marginTop: 8 }}>
-            <button
-              type="button"
-              className="ares-btn secondary"
-              disabled={!forzaTarget}
-              onClick={() => {
-                if (!forzaTarget) return
-                updateMissioneStato(missione.id, forzaTarget)
-                setForzaTarget('')
-              }}
-            >
-              Applica stato
-            </button>
-            {missione.stato !== 'FINE_MISSIONE' && (
-              <>
+                    <option value="">— Scegli stato —</option>
+                    {statiForcabili.map((s) => (
+                      <option key={s} value={s}>
+                        {LABEL_STATO_MISSIONE[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="ares-inline ares-modal-actions" style={{ marginTop: 8 }}>
                 <button
                   type="button"
                   className="ares-btn secondary"
-                  onClick={() => avanzaMissione(missione.id)}
-                  disabled={!canAdvance}
-                >
-                  {canAdvance ? `Avanza: ${LABEL_STATO_MISSIONE[nextState]}` : 'Completata'}
-                </button>
-                <button
-                  type="button"
-                  className="ares-btn warning"
+                  disabled={!forzaTarget}
                   onClick={() => {
-                    if (
-                      confirm(
-                        'Terminare la missione? Il mezzo verrà liberato.',
-                      )
-                    )
-                      terminaMissione(missione.id)
+                    if (!forzaTarget) return
+                    updateMissioneStato(missione.id, forzaTarget)
+                    setForzaTarget('')
                   }}
                 >
-                  Termina missione
+                  Applica stato
                 </button>
-              </>
-            )}
+                {missione.stato !== 'FINE_MISSIONE' && (
+                  <>
+                    <button
+                      type="button"
+                      className="ares-btn secondary"
+                      onClick={() => avanzaMissione(missione.id)}
+                      disabled={!canAdvance}
+                    >
+                      {canAdvance
+                        ? `Avanza: ${LABEL_STATO_MISSIONE[nextState]}`
+                        : 'Completata'}
+                    </button>
+                    <button
+                      type="button"
+                      className="ares-btn warning"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            'Terminare la missione? Il mezzo verrà liberato.',
+                          )
+                        )
+                          terminaMissione(missione.id)
+                      }}
+                    >
+                      Termina missione
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="ares-modal-mission-col">
+              <label className="full">
+                Esito missione
+                <select
+                  value={missione.esitoMissione}
+                  onChange={(e) =>
+                    updateMissione(missione.id, { esitoMissione: e.target.value })
+                  }
+                >
+                  <option value="">—</option>
+                  {impostazioni.esitiMissione.map((x) => (
+                    <option key={x} value={x}>
+                      {x}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="full">
+                Note missione
+                <textarea
+                  rows={16}
+                  value={missione.noteMissione}
+                  onChange={(e) =>
+                    updateMissione(missione.id, { noteMissione: e.target.value })
+                  }
+                />
+              </label>
+            </div>
           </div>
         </div>
       </div>

@@ -604,6 +604,36 @@ button.ares-link-mission,
   width: min(520px, 100%);
 }
 
+.ares-modal--mission-wide {
+  width: min(1180px, 98vw);
+}
+
+.ares-modal-mission-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.35fr) minmax(240px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.ares-modal-mission-col {
+  min-width: 0;
+}
+
+.ares-modal-mission-col h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+@media (max-width: 900px) {
+  .ares-modal-mission-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ares-modal--mission-wide {
+    width: min(520px, 100%);
+  }
+}
+
 .ares-modal-head {
   display: flex;
   align-items: center;

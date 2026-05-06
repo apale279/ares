@@ -395,27 +395,6 @@ export function Settings() {
           </label>
         </section>
       )}
-      <section className="ares-settings-entity-block">
-        <h1 className="ares-settings-entity-title">Paziente — ospedali e PMA</h1>
-        <p className="ares-muted">
-          Ospedali per destinazione PS. Le postazioni PMA (nome, indirizzo, staff,
-          inventario) si gestiscono nella tab <strong>IMP. PMA</strong>.
-        </p>
-        <div className="ares-settings-entity-grid">
-          <ImpostazioniTextPanel
-            title="Ospedali di destinazione"
-            description="Lista per la scheda paziente (destinazione ospedaliera)."
-            value={impostazioni.ospedali}
-            onSave={(ospedali) => setImpostazioni({ ospedali })}
-          />
-          <ImpostazioniTextPanel
-            title="Medici PMA"
-            description="Lista medici per dimissione paziente PMA (il primo e default)."
-            value={impostazioni.mediciPma ?? []}
-            onSave={(mediciPma) => setImpostazioni({ mediciPma })}
-          />
-        </div>
-      </section>
         </>
       )}
 
@@ -504,6 +483,28 @@ export function Settings() {
                 }
               />
             </details>
+          </section>
+
+          <section className="ares-settings-entity-block">
+            <h1 className="ares-settings-entity-title">Paziente — ospedali e PMA</h1>
+            <p className="ares-muted">
+              Ospedali per destinazione PS. Le postazioni PMA (nome, indirizzo, staff,
+              inventario) si gestiscono nella tab <strong>IMP. PMA</strong>.
+            </p>
+            <div className="ares-settings-entity-grid">
+              <ImpostazioniTextPanel
+                title="Ospedali di destinazione"
+                description="Lista per la scheda paziente (destinazione ospedaliera)."
+                value={impostazioni.ospedali}
+                onSave={(ospedali) => setImpostazioni({ ospedali })}
+              />
+              <ImpostazioniTextPanel
+                title="Medici PMA"
+                description="Lista medici per dimissione paziente PMA (il primo è default)."
+                value={impostazioni.mediciPma ?? []}
+                onSave={(mediciPma) => setImpostazioni({ mediciPma })}
+              />
+            </div>
           </section>
         </>
       )}
@@ -787,97 +788,11 @@ export function Settings() {
 
       {tab === 'mezzi' && (
         <>
-      <section className="ares-settings-entity-panel">
-        <h2>Stazionamenti</h2>
+      <section className="ares-settings-entity-block">
+        <h1 className="ares-settings-entity-title">Mezzi — anagrafica</h1>
         <p className="ares-muted">
-          Salva nome e indirizzo (mappa Photon o coordinate) da riusare nel menu del form{' '}
-          <strong>Crea / Modifica mezzo</strong>.
-        </p>
-        <button
-          type="button"
-          className="ares-btn primary"
-          onClick={() => {
-            setEditingStazione(null)
-            setStazModalOpen(true)
-          }}
-        >
-          Aggiungi stazionamento
-        </button>
-        {stazionamenti.length === 0 ? (
-          <p className="ares-muted" style={{ marginTop: 12 }}>
-            Nessuno stazionamento predefinito.
-          </p>
-        ) : (
-          <div className="ares-table-wrap" style={{ marginTop: 12 }}>
-            <table className="ares-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Indirizzo</th>
-                  <th>Coordinate</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {stazionamenti.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.nome}</td>
-                    <td>{s.indirizzo || '—'}</td>
-                    <td className="ares-muted">
-                      {s.lat != null && s.lng != null
-                        ? `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}`
-                        : '—'}
-                    </td>
-                    <td>
-                      <div className="ares-inline">
-                        <button
-                          type="button"
-                          className="ares-btn small secondary"
-                          onClick={() => {
-                            setEditingStazione(s)
-                            setStazModalOpen(true)
-                          }}
-                        >
-                          Modifica
-                        </button>
-                        <button
-                          type="button"
-                          className="ares-btn small danger"
-                          onClick={() => {
-                            if (!window.confirm(`Eliminare «${s.nome}»?`)) return
-                            setImpostazioni({
-                              stazionamentiMezzo: stazionamenti.filter((x) => x.id !== s.id),
-                            })
-                          }}
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-      <details className="ares-mission-collapsible">
-        <summary>Tipi mezzo (espandi)</summary>
-        <section className="ares-settings-entity-block" style={{ marginTop: 8 }}>
-          <ImpostazioniTextPanel
-            title="Tipi mezzo"
-            description="Compaiono nel menu a tendina in anagrafica mezzo (es. MSB, CMR, MSA). In import Excel, se il tipo non è in elenco viene usato il primo valore qui definito."
-            value={impostazioni.tipiMezzo}
-            onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
-          />
-        </section>
-      </details>
-      <details className="ares-mission-collapsible">
-        <summary>Mezzi — anagrafica (espandi)</summary>
-      <section className="ares-settings-entity-block" style={{ marginTop: 8 }}>
-        <p className="ares-muted">
-          Stazionamento: Photon, coordinate manuali o click sulla mappa nel form oppure scegli
-          uno stazionamento dall’elenco sopra.{' '}
+          Stazionamento: Photon, coordinate manuali o mappa nel form, oppure nel modale scegli
+          uno dalla sezione «Stazionamenti» (più sotto, comprimibile).{' '}
           <strong>Importa</strong> legge il foglio <strong>EQUIPAGGI</strong> (o il
           primo foglio): la <strong>riga 1</strong> deve essere solo i titoli colonne (non viene
           importata). Colonne A=tipo, B=sigla, C=sigla radio, D=targa, E=stazionamento
@@ -1035,6 +950,94 @@ export function Settings() {
           ) : null}
         </div>
       </section>
+      <details className="ares-mission-collapsible">
+        <summary>Tipi mezzo (espandi)</summary>
+        <section className="ares-settings-entity-block" style={{ marginTop: 8 }}>
+          <ImpostazioniTextPanel
+            title="Tipi mezzo"
+            description="Compaiono nel menu a tendina in anagrafica mezzo (es. MSB, CMR, MSA). In import Excel, se il tipo non è in elenco viene usato il primo valore qui definito."
+            value={impostazioni.tipiMezzo}
+            onSave={(tipiMezzo) => setImpostazioni({ tipiMezzo })}
+          />
+        </section>
+      </details>
+      <details className="ares-mission-collapsible">
+        <summary>Stazionamenti salvati — Aggiungi / elenco (espandi)</summary>
+        <section className="ares-settings-entity-panel" style={{ marginTop: 8 }}>
+          <p className="ares-muted">
+            Nome e indirizzo (mappa Photon o coordinate) riusabili nel menu del form{' '}
+            <strong>Crea / Modifica mezzo</strong>.
+          </p>
+          <button
+            type="button"
+            className="ares-btn primary"
+            onClick={() => {
+              setEditingStazione(null)
+              setStazModalOpen(true)
+            }}
+          >
+            Aggiungi stazionamento
+          </button>
+          {stazionamenti.length === 0 ? (
+            <p className="ares-muted" style={{ marginTop: 12 }}>
+              Nessuno stazionamento predefinito.
+            </p>
+          ) : (
+            <div className="ares-table-wrap" style={{ marginTop: 12 }}>
+              <table className="ares-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Indirizzo</th>
+                    <th>Coordinate</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {stazionamenti.map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.nome}</td>
+                      <td>{s.indirizzo || '—'}</td>
+                      <td className="ares-muted">
+                        {s.lat != null && s.lng != null
+                          ? `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}`
+                          : '—'}
+                      </td>
+                      <td>
+                        <div className="ares-inline">
+                          <button
+                            type="button"
+                            className="ares-btn small secondary"
+                            onClick={() => {
+                              setEditingStazione(s)
+                              setStazModalOpen(true)
+                            }}
+                          >
+                            Modifica
+                          </button>
+                          <button
+                            type="button"
+                            className="ares-btn small danger"
+                            onClick={() => {
+                              if (!window.confirm(`Eliminare «${s.nome}»?`)) return
+                              setImpostazioni({
+                                stazionamentiMezzo: stazionamenti.filter(
+                                  (x) => x.id !== s.id,
+                                ),
+                              })
+                            }}
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </details>
       </>
       )}
