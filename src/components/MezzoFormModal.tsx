@@ -30,9 +30,6 @@ export function MezzoFormModal({
     stazionamento: '',
     stazionamentoLat: null,
     stazionamentoLng: null,
-    posizioneRealeLat: null,
-    posizioneRealeLng: null,
-    posizioneRealeAt: null,
     equipaggio: equipaggioVuoto(),
     stato: 'DISPONIBILE',
   }
@@ -53,9 +50,6 @@ export function MezzoFormModal({
         stazionamento: mezzo.stazionamento,
         stazionamentoLat: mezzo.stazionamentoLat ?? null,
         stazionamentoLng: mezzo.stazionamentoLng ?? null,
-        posizioneRealeLat: mezzo.posizioneRealeLat ?? null,
-        posizioneRealeLng: mezzo.posizioneRealeLng ?? null,
-        posizioneRealeAt: mezzo.posizioneRealeAt ?? null,
         equipaggio: copiaEquipaggio(mezzo.equipaggio),
         stato: mezzo.stato,
       })

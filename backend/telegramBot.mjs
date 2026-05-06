@@ -249,105 +249,6 @@ function missionMessageHtml(missione, evento, mezzoSigla) {
   return parts.join('\n')
 }
 
-const MISSION_STATE_ORDER = [
-  'ALLERTARE',
-  'ALLERTATO',
-  'PARTITO',
-  'IN_POSTO',
-  'DIRETTO_IN_H',
-  'ARRIVATO_IN_H',
-  'RIENTRO',
-  'FINE_MISSIONE',
-]
-
-/** Etichetta dello stato (stesso significato dell’app centrale). */
-const LABEL_STATO_MISSIONE = {
-  ALLERTARE: 'Allertare',
-  ALLERTATO: 'Allertato',
-  PARTITO: 'Partito',
-  IN_POSTO: 'In posto',
-  DIRETTO_IN_H: 'Diretto in H',
-  ARRIVATO_IN_H: 'Arrivato in H',
-  RIENTRO: 'Rientro',
-  FINE_MISSIONE: 'Fine missione',
-}
-
-/** Un solo passo in avanti rispetto allo stato attuale sul DB (anche se la centrale ha saltato stati dall’interfaccia). */
-function nextMissionState(stato) {
-  const idx = MISSION_STATE_ORDER.indexOf(stato)
-  if (idx < 0 || idx >= MISSION_STATE_ORDER.length - 1) return stato
-  return MISSION_STATE_ORDER[idx + 1]
-}
-
-/**
- * Telegram `callback_data` max 64 byte. Prefix `ADV:` + missionId + `:` + rev.
- */
-function buildAdvanceKeyboard(missioneId, currentState, statoRevision) {
-  const next = nextMissionState(currentState)
-  if (next === currentState) {
-    return Markup.inlineKeyboard([])
-  }
-  const label = LABEL_STATO_MISSIONE[next] ?? next
-  const rev = typeof statoRevision === 'number' ? statoRevision : 0
-  const payload = `ADV:${missioneId}:${rev}`
-  if (Buffer.byteLength(payload, 'utf8') > 64) {
-    console.warn('[Telegram] callback_data troppo lungo per missione', missioneId)
-  }
-  return Markup.inlineKeyboard([[Markup.button.callback(label, payload)]])
-}
-
-/** @returns {{ missioneId: string, rev: number | null } | null} */
-function parseAdvancePayload(data) {
-  if (typeof data !== 'string') return null
-  if (data.startsWith('ADV:')) {
-    const rest = data.slice(4)
-    const last = rest.lastIndexOf(':')
-    if (last <= 0) return null
-    const missioneId = rest.slice(0, last)
-    const rev = Number.parseInt(rest.slice(last + 1), 10)
-    return Number.isFinite(rev) ? { missioneId, rev } : null
-  }
-  if (data.startsWith('ADVANCE:')) {
-    const rest = data.slice(8)
-    const last = rest.lastIndexOf(':')
-    if (last > 0) {
-      const cand = rest.slice(last + 1)
-      const rev = Number.parseInt(cand, 10)
-      if (Number.isFinite(rev) && cand === String(rev)) {
-        return { missioneId: rest.slice(0, last), rev }
-      }
-    }
-    return { missioneId: rest, rev: null }
-  }
-  return null
-}
-
-async function getMezzoIdsForChat(chatId) {
-  const { data, error } = await supabase
-    .from('telegram_mezzo_claims')
-    .select('mezzo_id')
-    .eq('chat_id', chatId)
-  if (error) throw error
-  return [...new Set((data ?? []).map((r) => r.mezzo_id))]
-}
-
-function reconcileEventi(eventi, missioni) {
-  const byEvent = new Map()
-  for (const m of missioni) {
-    const arr = byEvent.get(m.eventoId) ?? []
-    arr.push(m)
-    byEvent.set(m.eventoId, arr)
-  }
-  return (eventi ?? []).map((e) => {
-    if (e.stato === 'CHIUSO') return e
-    const list = byEvent.get(e.id) ?? []
-    if (list.length === 0) return { ...e, stato: 'IN_ATTESA' }
-    const tutteChiuse = list.every((m) => m.stato === 'FINE_MISSIONE')
-    if (tutteChiuse) return { ...e, stato: 'CHIUSO' }
-    return { ...e, stato: 'APERTO' }
-  })
-}
-
 async function clearMissionDispatchRequest(missioneId, requestToken) {
   const row = await getCurrentAresPayloadRow()
   const payload = row.payload
@@ -426,7 +327,6 @@ async function notifyRequestedMissions(nextState) {
           await bot.telegram.sendMessage(chatId, text, {
             parse_mode: 'HTML',
             disable_web_page_preview: true,
-            reply_markup: buildAdvanceKeyboard(m.id, m.stato, m.statoRevision).reply_markup,
           })
         } catch (err) {
           console.error('[Telegram notify error]', chatId, err)
@@ -436,221 +336,20 @@ async function notifyRequestedMissions(nextState) {
   }
 }
 
-async function handleMissionAdvanceCallback(ctx, data) {
-  const parsed = parseAdvancePayload(data)
-  if (!parsed) {
-    await ctx.answerCbQuery('Pulsante non valido')
-    return
-  }
-  const { missioneId, rev: callbackRev } = parsed
-  const chatId = String(ctx.chat.id)
-  const row = await getCurrentAresPayloadRow()
-  const payload = row.payload
-  const state = payload.state ?? {}
-  const missioni = Array.isArray(state.missioni) ? [...state.missioni] : []
-  const mezzi = Array.isArray(state.mezzi) ? [...state.mezzi] : []
-  const pazienti = Array.isArray(state.pazienti) ? [...state.pazienti] : []
-  const eventi = Array.isArray(state.eventi) ? [...state.eventi] : []
-  const idx = missioni.findIndex((m) => m.id === missioneId)
-  if (idx < 0) {
-    await ctx.answerCbQuery('Missione non trovata')
-    return
-  }
-  const missione = missioni[idx]
-  const chats = await getChatsForMezzo(missione.mezzoId, null)
-  if (!chats.includes(chatId)) {
-    await ctx.answerCbQuery('Non autorizzato su questo mezzo')
-    return
-  }
-  const currentRev = missione.statoRevision ?? 0
-  if (callbackRev !== null && callbackRev !== currentRev) {
-    await ctx.answerCbQuery(
-      'Stato aggiornato dalla centrale. Attendi un nuovo avviso o usa l’app.',
-      { show_alert: true },
-    )
-    return
-  }
-  const next = nextMissionState(missione.stato)
-  if (next === missione.stato) {
-    await ctx.answerCbQuery('Nessun avanzamento disponibile')
-    return
-  }
-  const now = new Date().toISOString()
-  const newRev = currentRev + 1
-  missioni[idx] = {
-    ...missione,
-    stato: next,
-    statoHistory: [...(missione.statoHistory ?? []), { stato: next, at: now }],
-    statoRevision: newRev,
-  }
-  missionCache.set(missioneId, missioni[idx])
-  let pazientiNext = pazienti
-  if (next === 'ARRIVATO_IN_H') {
-    pazientiNext = pazienti.map((p) => {
-      if (
-        p.eventoId !== missione.eventoId ||
-        p.mezzoTrasportoId !== missione.mezzoId ||
-        p.esito !== 'TRASPORTATO'
-      ) {
-        return p
-      }
-      const tipo = p.tipoDestinazioneTrasporto ?? 'OSPEDALE'
-      const slegato = { ...p, mezzoTrasportoId: null }
-      if (tipo === 'OSPEDALE') {
-        return {
-          ...slegato,
-          arrivoInOspedaleAt: p.arrivoInOspedaleAt ?? now,
-          trasportoCompletatoAt: p.trasportoCompletatoAt ?? now,
-        }
-      }
-      return { ...slegato, pmaArrivoAt: p.pmaArrivoAt ?? now }
-    })
-  }
-  let mezziNext = mezzi.map((mz) => ({ ...mz }))
-  const mzIdx = mezziNext.findIndex((mz) => mz.id === missione.mezzoId)
-  if (next === 'FINE_MISSIONE') {
-    if (mzIdx >= 0) {
-      mezziNext[mzIdx] = {
-        ...mezziNext[mzIdx],
-        stato: 'DISPONIBILE',
-        posizioneRealeLat: null,
-        posizioneRealeLng: null,
-        posizioneRealeAt: null,
-      }
-    }
-  } else if (mzIdx >= 0) {
-    const tlp = missione.telegramLastPosition
-    const tlpOk =
-      tlp &&
-      typeof tlp.lat === 'number' &&
-      typeof tlp.lng === 'number' &&
-      Number.isFinite(tlp.lat) &&
-      Number.isFinite(tlp.lng)
-    if (tlpOk) {
-      mezziNext[mzIdx] = {
-        ...mezziNext[mzIdx],
-        posizioneRealeLat: tlp.lat,
-        posizioneRealeLng: tlp.lng,
-        posizioneRealeAt: now,
-      }
-    }
-  }
-  const eventiNext = reconcileEventi(eventi, missioni)
-  const nextPayload = {
-    ...payload,
-    state: {
-      ...state,
-      missioni,
-      mezzi: mezziNext,
-      pazienti: pazientiNext,
-      eventi: eventiNext,
-    },
-  }
-  const { error } = await supabase
-    .from('ares_state')
-    .update({ payload: nextPayload, updated_at: now })
-    .eq('id', ARES_STATE_ROW_ID)
-  if (error) {
-    console.error('[Telegram advance error]', error)
-    await ctx.answerCbQuery('Errore aggiornando stato')
-    return
-  }
-  await ctx.answerCbQuery(LABEL_STATO_MISSIONE[next] ?? next)
-  try {
-    const kb = buildAdvanceKeyboard(missioneId, next, newRev)
-    await ctx.editMessageReplyMarkup(kb.reply_markup)
-  } catch {
-    /* messaggio troppo vecchio o non inline: ignora */
-  }
+/** Pulsanti vecchi su messaggi missione: non si aggiornano gli stati da Telegram. */
+async function rejectMissionStateFromTelegram(ctx) {
+  await ctx.answerCbQuery(
+    'Gli stati missione si aggiornano solo dall’app centrale ARES.',
+    { show_alert: true },
+  )
 }
 
 bot.action(/^ADV:.+$/, async (ctx) => {
-  await handleMissionAdvanceCallback(ctx, ctx.callbackQuery.data)
+  await rejectMissionStateFromTelegram(ctx)
 })
 
 bot.action(/^ADVANCE:.+$/, async (ctx) => {
-  await handleMissionAdvanceCallback(ctx, ctx.callbackQuery.data)
-})
-
-bot.on('message', async (ctx, next) => {
-  const loc = ctx.message?.location
-  if (!loc || typeof loc.latitude !== 'number' || typeof loc.longitude !== 'number') {
-    return next()
-  }
-  const chatId = String(ctx.chat.id)
-  try {
-    const mezzoIds = await getMezzoIdsForChat(chatId)
-    if (mezzoIds.length === 0) {
-      await ctx.reply(
-        'Nessun mezzo associato a questa chat. Usa /mezzi per collegarti a un mezzo.',
-      )
-      return
-    }
-    const row = await getCurrentAresPayloadRow()
-    const payload = row.payload
-    const st = payload.state ?? {}
-    const missioni = Array.isArray(st.missioni) ? [...st.missioni] : []
-    let mezzi = Array.isArray(st.mezzi) ? [...st.mezzi] : []
-    const now = new Date().toISOString()
-    const mezzoSet = new Set(mezzoIds)
-    const candidates = missioni
-      .map((m, i) => ({ m, i }))
-      .filter(
-        ({ m }) =>
-          mezzoSet.has(m.mezzoId) &&
-          m.stato &&
-          m.stato !== 'FINE_MISSIONE',
-      )
-      .sort(
-        (a, b) =>
-          String(b.m.createdAt ?? '').localeCompare(String(a.m.createdAt ?? '')),
-      )
-    const pick = candidates[0]
-    if (!pick) {
-      await ctx.reply('Nessuna missione attiva per i tuoi mezzi al momento.')
-      return
-    }
-    const { m: mis, i } = pick
-    missioni[i] = {
-      ...mis,
-      telegramLastPosition: {
-        lat: loc.latitude,
-        lng: loc.longitude,
-        at: now,
-      },
-    }
-    const im = mezzi.findIndex((mz) => mz.id === mis.mezzoId)
-    if (im >= 0) {
-      mezzi[im] = {
-        ...mezzi[im],
-        posizioneRealeLat: loc.latitude,
-        posizioneRealeLng: loc.longitude,
-        posizioneRealeAt: now,
-      }
-    }
-    const { error } = await supabase
-      .from('ares_state')
-      .update({
-        payload: {
-          ...payload,
-          state: { ...st, missioni, mezzi },
-        },
-        updated_at: now,
-      })
-      .eq('id', ARES_STATE_ROW_ID)
-    if (error) {
-      console.error('[Telegram location error]', error)
-      await ctx.reply('Errore nel salvataggio della posizione.')
-      return
-    }
-    missionCache.set(mis.id, missioni[i])
-    await ctx.reply(
-      `Posizione GPS registrata sul mezzo e sulla missione ${mis.id} (${mis.stato}).`,
-    )
-  } catch (err) {
-    console.error('[Telegram location handler]', err)
-    await ctx.reply('Errore elaborando la posizione.')
-  }
+  await rejectMissionStateFromTelegram(ctx)
 })
 
 async function notifyRequestedNotes(nextState) {

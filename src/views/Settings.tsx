@@ -1309,9 +1309,6 @@ export function Settings() {
               stazionamento: payload.stazionamento,
               stazionamentoLat: payload.stazionamentoLat,
               stazionamentoLng: payload.stazionamentoLng,
-              posizioneRealeLat: null,
-              posizioneRealeLng: null,
-              posizioneRealeAt: null,
               equipaggio: payload.equipaggio,
             })
           }

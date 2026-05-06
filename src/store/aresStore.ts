@@ -350,9 +350,6 @@ export const useAresStore = create<AresState>()(
           stazionamento: partial.stazionamento,
           stazionamentoLat: partial.stazionamentoLat ?? null,
           stazionamentoLng: partial.stazionamentoLng ?? null,
-          posizioneRealeLat: partial.posizioneRealeLat ?? null,
-          posizioneRealeLng: partial.posizioneRealeLng ?? null,
-          posizioneRealeAt: partial.posizioneRealeAt ?? null,
           equipaggio: partial.equipaggio ?? equipaggioVuoto(),
           stato: st,
         }
@@ -365,16 +362,7 @@ export const useAresStore = create<AresState>()(
 
       updateMezzo: (id, patch) =>
         set((s) => ({
-          mezzi: s.mezzi.map((m) => {
-            if (m.id !== id) return m
-            const merged = { ...m, ...patch } as Mezzo
-            if (merged.stato !== 'OCCUPATO') {
-              merged.posizioneRealeLat = null
-              merged.posizioneRealeLng = null
-              merged.posizioneRealeAt = null
-            }
-            return merged
-          }),
+          mezzi: s.mezzi.map((m) => (m.id === id ? { ...m, ...patch } : m)),
         })),
 
       deleteMezzo: (id) =>
@@ -450,13 +438,7 @@ export const useAresStore = create<AresState>()(
         )
         const mezzi = s.mezzi.map((m) =>
           mezzoIds.has(m.id) && m.stato === 'OCCUPATO'
-            ? {
-                ...m,
-                stato: 'DISPONIBILE' as const,
-                posizioneRealeLat: null,
-                posizioneRealeLng: null,
-                posizioneRealeAt: null,
-              }
+            ? { ...m, stato: 'DISPONIBILE' as const }
             : m,
         )
         const eventi = s.eventi.map((e) =>
@@ -478,13 +460,7 @@ export const useAresStore = create<AresState>()(
           valutazioni: s.valutazioni.filter((v) => !pazIds.includes(v.pazienteId)),
           mezzi: s.mezzi.map((m) =>
             mezzoIds.has(m.id) && m.stato === 'OCCUPATO'
-              ? {
-                  ...m,
-                  stato: 'DISPONIBILE' as const,
-                  posizioneRealeLat: null,
-                  posizioneRealeLng: null,
-                  posizioneRealeAt: null,
-                }
+              ? { ...m, stato: 'DISPONIBILE' as const }
               : m,
           ),
         })
@@ -593,15 +569,7 @@ export const useAresStore = create<AresState>()(
           let mezzi = s.mezzi
           if (m && stato === 'FINE_MISSIONE') {
             mezzi = s.mezzi.map((mz) =>
-              mz.id === m.mezzoId
-                ? {
-                    ...mz,
-                    stato: 'DISPONIBILE' as const,
-                    posizioneRealeLat: null,
-                    posizioneRealeLng: null,
-                    posizioneRealeAt: null,
-                  }
-                : mz,
+              mz.id === m.mezzoId ? { ...mz, stato: 'DISPONIBILE' as const } : mz,
             )
           }
           return { missioni, pazienti, mezzi }
@@ -697,13 +665,7 @@ export const useAresStore = create<AresState>()(
           missioni: s.missioni.filter((x) => x.id !== missioneId),
           mezzi: s.mezzi.map((mz) =>
             mz.id === m.mezzoId && mz.stato === 'OCCUPATO'
-              ? {
-                  ...mz,
-                  stato: 'DISPONIBILE' as const,
-                  posizioneRealeLat: null,
-                  posizioneRealeLng: null,
-                  posizioneRealeAt: null,
-                }
+              ? { ...mz, stato: 'DISPONIBILE' as const }
               : mz,
           ),
         })
@@ -909,14 +871,18 @@ export const useAresStore = create<AresState>()(
           writeLocalLayout(nextLayout, LAYOUT_VERSION)
         }
         if (out.mezzi?.length) {
-          out.mezzi = out.mezzi.map((m) => ({
-            ...m,
-            stazionamentoLat: m.stazionamentoLat ?? null,
-            stazionamentoLng: m.stazionamentoLng ?? null,
-            posizioneRealeLat: m.posizioneRealeLat ?? null,
-            posizioneRealeLng: m.posizioneRealeLng ?? null,
-            posizioneRealeAt: m.posizioneRealeAt ?? null,
-          }))
+          out.mezzi = out.mezzi.map((m) => {
+            const raw = { ...(m as Mezzo & Record<string, unknown>) }
+            delete raw.posizioneRealeLat
+            delete raw.posizioneRealeLng
+            delete raw.posizioneRealeAt
+            const clean = raw as Mezzo
+            return {
+              ...clean,
+              stazionamentoLat: clean.stazionamentoLat ?? null,
+              stazionamentoLng: clean.stazionamentoLng ?? null,
+            }
+          })
         }
         out.impostazioni = migrateImpostazioni({
           ...c.impostazioni,
