@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabaseClient'
  */
 const ROW_ID = 'default'
 const BACKUP_STORAGE_KEY = 'ares-supabase-backup'
+const SNAPSHOT_PREFIX = 'snapshot_'
+const SNAPSHOT_KEEP_COUNT = 50
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingValue: string | null = null
@@ -102,6 +104,45 @@ async function readRemoteStateRow(): Promise<{
   }
 }
 
+function buildSnapshotId(syncIso: string): string {
+  const compact = syncIso.replace(/[-:.TZ]/g, '').slice(0, 17)
+  const suffix = Math.random().toString(36).slice(2, 8)
+  return `${SNAPSHOT_PREFIX}${compact}_${suffix}`
+}
+
+async function createSnapshotRow(payload: unknown, syncIso: string): Promise<void> {
+  const snapshotId = buildSnapshotId(syncIso)
+  const { error } = await supabase.from('ares_state').insert({
+    id: snapshotId,
+    payload,
+    updated_at: syncIso,
+  })
+  if (error) throw error
+}
+
+async function pruneSnapshots(): Promise<void> {
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('id, updated_at')
+    .like('id', `${SNAPSHOT_PREFIX}%`)
+    .order('updated_at', { ascending: false })
+    .range(SNAPSHOT_KEEP_COUNT, SNAPSHOT_KEEP_COUNT + 500)
+
+  if (error || !data?.length) return
+  const ids = data.map((row) => row.id).filter(Boolean)
+  if (!ids.length) return
+  await supabase.from('ares_state').delete().in('id', ids)
+}
+
+async function archiveSnapshot(payload: unknown, syncIso: string): Promise<void> {
+  try {
+    await createSnapshotRow(payload, syncIso)
+    await pruneSnapshots()
+  } catch (error) {
+    console.warn('[Ares] Snapshot archive failed:', error)
+  }
+}
+
 class RemoteConflictError extends Error {
   constructor() {
     super(
@@ -134,6 +175,7 @@ async function upsertPayloadString(raw: string): Promise<void> {
       { onConflict: 'id' },
     )
     if (error) throw error
+    await archiveSnapshot(payload, syncIso)
     markSynced(syncIso)
     return
   }
@@ -158,6 +200,7 @@ async function upsertPayloadString(raw: string): Promise<void> {
     }
     throw new RemoteConflictError()
   }
+  await archiveSnapshot(payload, data.updated_at)
   markSynced(data.updated_at)
 }
 

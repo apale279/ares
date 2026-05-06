@@ -73,6 +73,7 @@ export function PatientDetailModal({
   const [expandedValId, setExpandedValId] = useState<string | null>(null)
   const [confirmClosePma, setConfirmClosePma] = useState(false)
   const [medicoDimettente, setMedicoDimettente] = useState('')
+  const nomiPma = useMemo(() => nomiPmaDaImpostazioni(impostazioni), [impostazioni])
 
   const mezziTrasportoIds = useMemo(() => {
     if (!paziente) return [] as string[]
@@ -100,7 +101,6 @@ export function PatientDetailModal({
   const pmaCompactMode = compactForPma ?? modalMode === 'pma'
   const mediciPma = impostazioni.mediciPma ?? []
   const medicoDefault = mediciPma[0] ?? ''
-  const nomiPma = useMemo(() => nomiPmaDaImpostazioni(impostazioni), [impostazioni])
 
   const evento = eventi.find((e) => e.id === paziente.eventoId)
   const trasportato = paziente.esito === 'TRASPORTATO'
