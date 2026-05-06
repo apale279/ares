@@ -11,7 +11,13 @@ export function PersistenceStatusDot() {
   const [openLog, setOpenLog] = useState(false)
   const [logBusy, setLogBusy] = useState(false)
   const [logRows, setLogRows] = useState<
-    { timestamp: string; userId: string; action: string; detail: string }[]
+    {
+      timestamp: string
+      userId: string
+      userName: string
+      action: string
+      detail: string
+    }[]
   >([])
 
   useEffect(() => {
@@ -95,7 +101,7 @@ export function PersistenceStatusDot() {
                     {logRows.map((r, i) => (
                       <tr key={`${r.timestamp}_${i}`}>
                         <td>{r.timestamp ? new Date(r.timestamp).toLocaleString('it-IT') : '—'}</td>
-                        <td>{r.userId || '—'}</td>
+                        <td>{r.userName || r.userId || '—'}</td>
                         <td>{r.detail || r.action}</td>
                       </tr>
                     ))}

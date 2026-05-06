@@ -108,6 +108,9 @@ function AppShellRoutes() {
           ))}
         </div>
         <div className="ares-nav-right">
+          <span className="ares-muted" title="Utente attualmente autenticato">
+            Utente: {session?.nomeUtente ?? '—'}
+          </span>
           {syncEnabled && (
             <button
               type="button"

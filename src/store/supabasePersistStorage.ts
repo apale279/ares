@@ -14,12 +14,14 @@ const MANUAL_BACKUP_KEEP_COUNT = 5
 const AUDIT_PREFIX = 'audit_'
 const AUDIT_KEEP_COUNT = 500
 const SESSION_KEY = 'ares_session_v1'
+const WRITE_DEBOUNCE_MS = 700
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingValue: string | null = null
 let savePromiseChain: Promise<void> = Promise.resolve()
 let ignoreRealtimeUntil = 0
 let lastSyncAt: string | null = null
+let lastWrittenNormalizedPayload = ''
 const syncListeners = new Set<(iso: string) => void>()
 
 /** True mentre è in coda o in corso un flush verso Supabase. */
@@ -109,20 +111,32 @@ async function readRemoteStateRow(): Promise<{
   }
 }
 
-function getCurrentUserIdForSnapshot(): string {
+function getCurrentActor(): { userId: string; nomeUtente: string } {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
-    if (!raw) return 'anonymous'
-    const parsed = JSON.parse(raw) as { userId?: unknown }
+    if (!raw) return { userId: 'anonymous', nomeUtente: 'anonymous' }
+    const parsed = JSON.parse(raw) as { userId?: unknown; nomeUtente?: unknown }
     const userId = String(parsed?.userId ?? '').trim()
-    return userId || 'anonymous'
+    const nomeUtente = String(parsed?.nomeUtente ?? '').trim()
+    return {
+      userId: userId || 'anonymous',
+      nomeUtente: nomeUtente || userId || 'anonymous',
+    }
   } catch {
-    return 'anonymous'
+    return { userId: 'anonymous', nomeUtente: 'anonymous' }
   }
 }
 
 function compactTs(iso: string): string {
   return iso.replace(/[-:.TZ]/g, '').slice(0, 17)
+}
+
+function normalizePayloadRaw(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw))
+  } catch {
+    return raw
+  }
 }
 
 function buildSnapshotId(syncIso: string, userId: string): string {
@@ -199,7 +213,7 @@ async function pruneAuditLogs(): Promise<void> {
 
 async function archiveSnapshot(payload: unknown, syncIso: string): Promise<void> {
   try {
-    const userId = getCurrentUserIdForSnapshot()
+    const { userId } = getCurrentActor()
     await createSnapshotRow(payload, syncIso, userId)
     await pruneSnapshots(userId)
   } catch (error) {
@@ -212,6 +226,7 @@ type ManualBackupPayload = {
   name: string
   created_at: string
   source_user_id: string
+  source_user_name?: string
   data: unknown
 }
 
@@ -219,6 +234,7 @@ type AuditPayload = {
   kind: 'audit_log'
   at: string
   user_id: string
+  user_name?: string
   action: string
   detail: string
 }
@@ -226,10 +242,12 @@ type AuditPayload = {
 async function createAuditLog(action: string, detail: string): Promise<void> {
   try {
     const at = new Date().toISOString()
+    const actor = getCurrentActor()
     const payload: AuditPayload = {
       kind: 'audit_log',
       at,
-      user_id: getCurrentUserIdForSnapshot(),
+      user_id: actor.userId,
+      user_name: actor.nomeUtente,
       action,
       detail,
     }
@@ -256,9 +274,23 @@ class RemoteConflictError extends Error {
 
 async function upsertPayloadString(raw: string): Promise<void> {
   const payload = JSON.parse(raw) as unknown
+  const normalizedIncoming = normalizePayloadRaw(raw)
   const syncIso = new Date().toISOString()
   const remote = await readRemoteStateRow()
   const remoteUpdatedAt = remote?.updated_at ?? null
+  const remoteRaw = remote?.payload == null ? '' : JSON.stringify(remote.payload)
+  const normalizedRemote = remoteRaw ? normalizePayloadRaw(remoteRaw) : ''
+
+  // No-op write optimization: if cloud already has same content, only refresh local sync state.
+  if (normalizedRemote && normalizedRemote === normalizedIncoming) {
+    if (remoteUpdatedAt) {
+      markSynced(remoteUpdatedAt)
+    } else {
+      markSynced(syncIso)
+    }
+    lastWrittenNormalizedPayload = normalizedIncoming
+    return
+  }
 
   if (remoteUpdatedAt && (!lastSyncAt || remoteUpdatedAt !== lastSyncAt)) {
     lastSyncAt = remoteUpdatedAt
@@ -280,6 +312,7 @@ async function upsertPayloadString(raw: string): Promise<void> {
     await archiveSnapshot(payload, syncIso)
     await createAuditLog('state_update', 'Inizializzazione stato applicazione')
     markSynced(syncIso)
+    lastWrittenNormalizedPayload = normalizedIncoming
     return
   }
 
@@ -306,6 +339,7 @@ async function upsertPayloadString(raw: string): Promise<void> {
   await archiveSnapshot(payload, data.updated_at)
   await createAuditLog('state_update', 'Aggiornamento dati applicazione')
   markSynced(data.updated_at)
+  lastWrittenNormalizedPayload = normalizedIncoming
 }
 
 function markSynced(syncIso: string) {
@@ -332,14 +366,21 @@ export function createSupabaseJsonStorage(): StateStorageLike {
           bumpPersistHealthListeners()
         }
         const p = data.payload as unknown
-        if (typeof p === 'string') return p
-        return JSON.stringify(p)
+        if (typeof p === 'string') {
+          lastWrittenNormalizedPayload = normalizePayloadRaw(p)
+          return p
+        }
+        const raw = JSON.stringify(p)
+        lastWrittenNormalizedPayload = normalizePayloadRaw(raw)
+        return raw
       }
       return null
     },
 
     setItem: async (name: string, value: string): Promise<void> => {
       if (!isSupabaseConfigured()) return
+      const normalized = normalizePayloadRaw(value)
+      if (normalized === lastWrittenNormalizedPayload) return
 
       pendingValue = value
       pendingRemoteFlush = true
@@ -366,6 +407,13 @@ export function createSupabaseJsonStorage(): StateStorageLike {
                 return
               }
               try {
+                const normalizedToWrite = normalizePayloadRaw(toWrite)
+                if (normalizedToWrite === lastWrittenNormalizedPayload) {
+                  pendingRemoteFlush = false
+                  bumpPersistHealthListeners()
+                  resolve()
+                  return
+                }
                 await upsertPayloadString(toWrite)
                 pendingRemoteFlush = false
                 bumpPersistHealthListeners()
@@ -378,7 +426,7 @@ export function createSupabaseJsonStorage(): StateStorageLike {
                 bumpPersistHealthListeners()
                 reject(e)
               }
-            }, 0)
+            }, WRITE_DEBOUNCE_MS)
           }),
       )
 
@@ -442,6 +490,7 @@ export type PersistAuditRecord = {
   id: string
   timestamp: string
   userId: string
+  userName: string
   action: string
   detail: string
 }
@@ -456,7 +505,8 @@ export async function createManualBackup(name?: string): Promise<void> {
     kind: 'manual_backup',
     name: trimmed || `Backup ${new Date(createdAt).toLocaleString('it-IT')}`,
     created_at: createdAt,
-    source_user_id: getCurrentUserIdForSnapshot(),
+    source_user_id: getCurrentActor().userId,
+    source_user_name: getCurrentActor().nomeUtente,
     data: remote.payload,
   }
   const { error } = await supabase.from('ares_state').insert({
@@ -510,7 +560,8 @@ export async function renameManualBackup(
     kind: 'manual_backup',
     name: trimmed,
     created_at: String(current.created_at ?? new Date().toISOString()),
-    source_user_id: String(current.source_user_id ?? getCurrentUserIdForSnapshot()),
+    source_user_id: String(current.source_user_id ?? getCurrentActor().userId),
+    source_user_name: String(current.source_user_name ?? getCurrentActor().nomeUtente),
     data: current.data ?? {},
   }
   const { error: upError } = await supabase
@@ -558,6 +609,7 @@ export async function listPersistAuditLogs(limit = 150): Promise<PersistAuditRec
       id: String(row.id),
       timestamp: String(payload.at ?? row.updated_at ?? ''),
       userId: String(payload.user_id ?? 'unknown'),
+      userName: String(payload.user_name ?? payload.user_id ?? 'unknown'),
       action: String(payload.action ?? 'unknown'),
       detail: String(payload.detail ?? ''),
     }
