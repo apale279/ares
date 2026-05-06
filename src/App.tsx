@@ -22,7 +22,7 @@ import { MezzoDetailModal } from './components/MezzoDetailModal'
 import { PersistenceStatusDot } from './components/PersistenceStatusDot'
 import { useAresStore } from './store/aresStore'
 import {
-  forceSupabaseSync,
+  discardDebouncedPendingRemoteWrite,
   getLastSyncAt,
   isSupabaseConfigured,
   onSyncUpdate,
@@ -116,13 +116,16 @@ function AppShellRoutes() {
               type="button"
               className="ares-nav-sync"
               disabled={syncBusy}
+              title={
+                'Scarica da Supabase l’ultimo stato salvato (come aggiorna pagina sul dato centralizzato). ' +
+                  'Non forza una riscrittura sul cloud.'
+              }
               onClick={async () => {
-                const key = useAresStore.persist.getOptions().name
-                if (!key) return
+                if (!useAresStore.persist.getOptions().name) return
                 setSyncBusy(true)
                 try {
+                  discardDebouncedPendingRemoteWrite()
                   await useAresStore.persist.rehydrate()
-                  await forceSupabaseSync(key)
                 } finally {
                   setSyncBusy(false)
                 }

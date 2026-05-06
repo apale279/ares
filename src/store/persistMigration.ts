@@ -248,6 +248,8 @@ export function migrateMissione(m: Missione): Missione {
     ...m,
     esitoMissione: m.esitoMissione ?? '',
     noteMissione: m.noteMissione ?? '',
+    statoRevision: typeof m.statoRevision === 'number' ? m.statoRevision : 0,
+    telegramLastPosition: m.telegramLastPosition ?? undefined,
   }
 }
 

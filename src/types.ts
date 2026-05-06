@@ -134,6 +134,13 @@ export interface Missione {
   statoHistory: MissionStateLog[]
   tratte: TrattaMissione[]
   telegramDispatchRequestedAt?: string | null
+  /**
+   * Incrementato ad ogni cambio `stato` (centrale o Telegram).
+   * Il bot valida i callback inline così un tap dopo un “forza stato” non applica passi obsoleti.
+   */
+  statoRevision?: number
+  /** Ultima posizione inviata dal mezzo via Telegram (condivisione luogo). */
+  telegramLastPosition?: { lat: number; lng: number; at: string } | null
 }
 
 export interface TrattaMissione {

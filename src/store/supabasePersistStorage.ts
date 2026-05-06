@@ -462,6 +462,23 @@ export function shouldSkipRemoteRehydrate(): boolean {
   return Date.now() < ignoreRealtimeUntil
 }
 
+/**
+ * Annulla l’upload cloud in coda (debounce senza aver ancora chiamato Supabase).
+ * Usare prima di un “pull” manuale (es. pulsante SYNC) così uno snapshot locale
+ * obsoleto non sovrascrive una modifica fatta da un altro PC dopo l’ultima lettura.
+ */
+export function discardDebouncedPendingRemoteWrite(): void {
+  const hadQueued =
+    pendingValue !== null || saveTimer !== null || pendingRemoteFlush
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  pendingValue = null
+  pendingRemoteFlush = false
+  if (hadQueued) bumpPersistHealthListeners()
+}
+
 export async function forceSupabaseSync(storageKey: string): Promise<void> {
   void storageKey
   if (!isSupabaseConfigured()) return

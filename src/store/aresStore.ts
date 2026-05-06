@@ -430,6 +430,7 @@ export const useAresStore = create<AresState>()(
               ...m.statoHistory,
               { stato: 'FINE_MISSIONE' as const, at: ts },
             ],
+            statoRevision: (m.statoRevision ?? 0) + 1,
           }
         })
         const mezzoIds = new Set(
@@ -495,6 +496,7 @@ export const useAresStore = create<AresState>()(
           statoHistory: [log],
           tratte: [],
           telegramDispatchRequestedAt: null,
+          statoRevision: 1,
         }
         set({
           missioni: [...s.missioni, missione],
@@ -531,7 +533,12 @@ export const useAresStore = create<AresState>()(
           const missioni = s.missioni.map((m) => {
             if (m.id !== missioneId) return m
             const history = [...m.statoHistory, { stato, at: ts }]
-            return { ...m, stato, statoHistory: history }
+            return {
+              ...m,
+              stato,
+              statoHistory: history,
+              statoRevision: (m.statoRevision ?? 0) + 1,
+            }
           })
           let pazienti = s.pazienti
           const m = missioni.find((x) => x.id === missioneId)
@@ -667,13 +674,22 @@ export const useAresStore = create<AresState>()(
 
       updateMissione: (missioneId, patch) =>
         set((s) => ({
-          missioni: s.missioni.map((m) =>
-            m.id === missioneId &&
-            m.stato !== 'FINE_MISSIONE' &&
-            s.eventi.find((e) => e.id === m.eventoId)?.stato !== 'CHIUSO'
-              ? { ...m, ...patch }
-              : m,
-          ),
+          missioni: s.missioni.map((m) => {
+            if (
+              m.id !== missioneId ||
+              m.stato === 'FINE_MISSIONE' ||
+              s.eventi.find((e) => e.id === m.eventoId)?.stato === 'CHIUSO'
+            ) {
+              return m
+            }
+            const statoChanged =
+              patch.stato !== undefined && patch.stato !== m.stato
+            const merged = { ...m, ...patch } as Missione
+            if (statoChanged) {
+              merged.statoRevision = (m.statoRevision ?? 0) + 1
+            }
+            return merged
+          }),
         })),
 
       addPaziente: (eventoId) => {
