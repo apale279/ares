@@ -118,6 +118,7 @@ function AppShellRoutes() {
                 if (!key) return
                 setSyncBusy(true)
                 try {
+                  await useAresStore.persist.rehydrate()
                   await forceSupabaseSync(key)
                 } finally {
                   setSyncBusy(false)
