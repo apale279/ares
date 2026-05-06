@@ -84,6 +84,7 @@ export function MissionDetailModal({
   const currentStateIndex = MISSION_STATE_ORDER.indexOf(missione.stato)
   const nextState = prossimoStatoMissione(missione.stato)
   const canAdvance = nextState !== missione.stato
+  const missioneChiusa = missione.stato === 'FINE_MISSIONE'
 
   const statiForcabili = MISSION_STATE_ORDER.filter((s) => {
     if (s === missione.stato) return false
@@ -183,6 +184,7 @@ export function MissionDetailModal({
                           <input
                             type="datetime-local"
                             value={item.at.slice(0, 16)}
+                            disabled={missioneChiusa}
                             onChange={(e) =>
                               patchMissioneStatoHistoryAt(
                                 missione.id,
@@ -219,6 +221,7 @@ export function MissionDetailModal({
                                   <input
                                     type="datetime-local"
                                     value={t.timestamp.slice(0, 16)}
+                                    disabled={missioneChiusa}
                                     onChange={(e) =>
                                       updateTrattaMissione(missione.id, t.id, {
                                         timestamp: new Date(
@@ -232,6 +235,7 @@ export function MissionDetailModal({
                                   Titolo
                                   <input
                                     value={t.titolo}
+                                    disabled={missioneChiusa}
                                     onChange={(e) =>
                                       updateTrattaMissione(missione.id, t.id, {
                                         titolo: e.target.value,
@@ -243,6 +247,7 @@ export function MissionDetailModal({
                                   Destinazione
                                   <input
                                     value={t.destinazione}
+                                    disabled={missioneChiusa}
                                     onChange={(e) =>
                                       updateTrattaMissione(missione.id, t.id, {
                                         destinazione: e.target.value,
@@ -255,6 +260,7 @@ export function MissionDetailModal({
                                   <textarea
                                     rows={2}
                                     value={t.descrizione}
+                                    disabled={missioneChiusa}
                                     onChange={(e) =>
                                       updateTrattaMissione(missione.id, t.id, {
                                         descrizione: e.target.value,
@@ -265,6 +271,7 @@ export function MissionDetailModal({
                                 <button
                                   type="button"
                                   className="ares-btn small danger"
+                                  disabled={missioneChiusa}
                                   onClick={() => {
                                     deleteTrattaMissione(missione.id, t.id)
                                     setTrattaOpen((id) =>
@@ -287,6 +294,7 @@ export function MissionDetailModal({
                 type="button"
                 className="ares-btn secondary"
                 style={{ marginTop: 8 }}
+                disabled={missioneChiusa}
                 onClick={() => addTrattaMissione(missione.id)}
               >
                 Aggiungi tratta
@@ -297,6 +305,7 @@ export function MissionDetailModal({
                   Forza stato (salta stati intermedi)
                   <select
                     value={forzaTarget}
+                    disabled={missioneChiusa}
                     onChange={(e) =>
                       setForzaTarget(e.target.value as StatoMissione | '')
                     }
@@ -314,7 +323,7 @@ export function MissionDetailModal({
                 <button
                   type="button"
                   className="ares-btn secondary"
-                  disabled={!forzaTarget}
+                  disabled={!forzaTarget || missioneChiusa}
                   onClick={() => {
                     if (!forzaTarget) return
                     updateMissioneStato(missione.id, forzaTarget)
@@ -359,6 +368,7 @@ export function MissionDetailModal({
                 Esito missione
                 <select
                   value={missione.esitoMissione}
+                  disabled={missioneChiusa}
                   onChange={(e) =>
                     updateMissione(missione.id, { esitoMissione: e.target.value })
                   }
@@ -376,6 +386,7 @@ export function MissionDetailModal({
                 <textarea
                   rows={16}
                   value={missione.noteMissione}
+                  disabled={missioneChiusa}
                   onChange={(e) =>
                     updateMissione(missione.id, { noteMissione: e.target.value })
                   }

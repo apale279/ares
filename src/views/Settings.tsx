@@ -101,6 +101,12 @@ export function Settings() {
   const [backupBusy, setBackupBusy] = useState(false)
   const [backups, setBackups] = useState<ManualBackupRecord[]>([])
   const [backupNameDrafts, setBackupNameDrafts] = useState<Record<string, string>>({})
+  const [rankDrafts, setRankDrafts] = useState<
+    Record<string, { nome: string; routeKeys: AppRouteKey[] }>
+  >({})
+  const [utenteDrafts, setUtenteDrafts] = useState<
+    Record<string, { nomeUtente: string; password: string; rankId: string }>
+  >({})
   const [dragMezzoId, setDragMezzoId] = useState<string | null>(null)
   const [stazModalOpen, setStazModalOpen] = useState(false)
   const [editingStazione, setEditingStazione] = useState<StazionamentoMezzoPreset | null>(
@@ -180,6 +186,32 @@ export function Settings() {
     if (tab !== 'generali' || !backupEnabled) return
     void reloadBackups()
   }, [tab, backupEnabled])
+
+  useEffect(() => {
+    setRankDrafts((prev) => {
+      const next: Record<string, { nome: string; routeKeys: AppRouteKey[] }> = {}
+      for (const r of ranks) {
+        next[r.id] = prev[r.id] ?? { nome: r.nome, routeKeys: [...r.routeKeys] }
+      }
+      return next
+    })
+  }, [ranks])
+
+  useEffect(() => {
+    setUtenteDrafts((prev) => {
+      const next: Record<string, { nomeUtente: string; password: string; rankId: string }> =
+        {}
+      for (const u of utenti) {
+        next[u.id] =
+          prev[u.id] ?? {
+            nomeUtente: u.nomeUtente,
+            password: u.password,
+            rankId: u.rankId,
+          }
+      }
+      return next
+    })
+  }, [utenti])
 
   return (
     <div className="ares-settings">
@@ -596,16 +628,22 @@ export function Settings() {
             <ul className="ares-list">
               {ranks.map((r) => (
                 <li key={r.id} className="ares-card">
+                  {(() => {
+                    const draft = rankDrafts[r.id] ?? {
+                      nome: r.nome,
+                      routeKeys: r.routeKeys,
+                    }
+                    return (
+                      <>
                   <label>
                     Nome rank
                     <input
-                      value={r.nome}
+                      value={draft.nome}
                       onChange={(e) =>
-                        setImpostazioni({
-                          rankUtente: ranks.map((x) =>
-                            x.id === r.id ? { ...x, nome: e.target.value } : x,
-                          ),
-                        })
+                        setRankDrafts((prev) => ({
+                          ...prev,
+                          [r.id]: { ...draft, nome: e.target.value },
+                        }))
                       }
                     />
                   </label>
@@ -614,29 +652,48 @@ export function Settings() {
                       <label key={`${r.id}-${opt.key}`} className="ares-check">
                         <input
                           type="checkbox"
-                          checked={r.routeKeys.includes(opt.key)}
+                          checked={draft.routeKeys.includes(opt.key)}
                           onChange={() => {
-                            const routeKeys = r.routeKeys.includes(opt.key)
-                              ? r.routeKeys.filter((k) => k !== opt.key)
-                              : [...r.routeKeys, opt.key]
-                            setImpostazioni({
-                              rankUtente: ranks.map((x) =>
-                                x.id === r.id
-                                  ? {
-                                      ...x,
-                                      routeKeys: routeKeys.length
-                                        ? routeKeys
-                                        : ['dashboard'],
-                                    }
-                                  : x,
-                              ),
-                            })
+                            const routeKeys = draft.routeKeys.includes(opt.key)
+                              ? draft.routeKeys.filter((k) => k !== opt.key)
+                              : [...draft.routeKeys, opt.key]
+                            setRankDrafts((prev) => ({
+                              ...prev,
+                              [r.id]: {
+                                ...draft,
+                                routeKeys: routeKeys.length ? routeKeys : ['dashboard'],
+                              },
+                            }))
                           }}
                         />
                         {opt.label}
                       </label>
                     ))}
                   </div>
+                  <div className="ares-inline">
+                    <button
+                      type="button"
+                      className="ares-btn small primary"
+                      onClick={() => {
+                        const safeNome = draft.nome.trim()
+                        if (!safeNome) {
+                          alert('Nome rank obbligatorio.')
+                          return
+                        }
+                        const safeRoutes: AppRouteKey[] = draft.routeKeys.length
+                          ? draft.routeKeys
+                          : ['dashboard']
+                        setImpostazioni({
+                          rankUtente: ranks.map((x) =>
+                            x.id === r.id
+                              ? { ...x, nome: safeNome, routeKeys: safeRoutes }
+                              : x,
+                          ),
+                        })
+                      }}
+                    >
+                      Salva rank
+                    </button>
                   <button
                     type="button"
                     className="ares-btn small danger"
@@ -653,6 +710,10 @@ export function Settings() {
                   >
                     Elimina rank
                   </button>
+                  </div>
+                      </>
+                    )
+                  })()}
                 </li>
               ))}
             </ul>
@@ -716,18 +777,23 @@ export function Settings() {
             <ul className="ares-list">
               {utenti.map((u) => (
                 <li key={u.id} className="ares-card">
+                  {(() => {
+                    const draft = utenteDrafts[u.id] ?? {
+                      nomeUtente: u.nomeUtente,
+                      password: u.password,
+                      rankId: u.rankId,
+                    }
+                    return (
+                      <>
                   <label>
                     Nome utente
                     <input
-                      value={u.nomeUtente}
+                      value={draft.nomeUtente}
                       onChange={(e) =>
-                        setImpostazioni({
-                          utenti: utenti.map((x) =>
-                            x.id === u.id
-                              ? { ...x, nomeUtente: e.target.value }
-                              : x,
-                          ),
-                        })
+                        setUtenteDrafts((prev) => ({
+                          ...prev,
+                          [u.id]: { ...draft, nomeUtente: e.target.value },
+                        }))
                       }
                     />
                   </label>
@@ -735,26 +801,24 @@ export function Settings() {
                     Password
                     <input
                       type="password"
-                      value={u.password}
+                      value={draft.password}
                       onChange={(e) =>
-                        setImpostazioni({
-                          utenti: utenti.map((x) =>
-                            x.id === u.id ? { ...x, password: e.target.value } : x,
-                          ),
-                        })
+                        setUtenteDrafts((prev) => ({
+                          ...prev,
+                          [u.id]: { ...draft, password: e.target.value },
+                        }))
                       }
                     />
                   </label>
                   <label>
                     Rank
                     <select
-                      value={u.rankId}
+                      value={draft.rankId}
                       onChange={(e) =>
-                        setImpostazioni({
-                          utenti: utenti.map((x) =>
-                            x.id === u.id ? { ...x, rankId: e.target.value } : x,
-                          ),
-                        })
+                        setUtenteDrafts((prev) => ({
+                          ...prev,
+                          [u.id]: { ...draft, rankId: e.target.value },
+                        }))
                       }
                     >
                       {ranks.map((r) => (
@@ -767,6 +831,37 @@ export function Settings() {
                   <div className="ares-inline">
                     <button
                       type="button"
+                      className="ares-btn small primary"
+                      onClick={() => {
+                        const nome = draft.nomeUtente.trim()
+                        if (!nome || !draft.password || !draft.rankId) {
+                          alert('Compila nome, password e rank.')
+                          return
+                        }
+                        if (
+                          utenti.some((x) => x.id !== u.id && x.nomeUtente === nome)
+                        ) {
+                          alert('Nome utente gia esistente.')
+                          return
+                        }
+                        setImpostazioni({
+                          utenti: utenti.map((x) =>
+                            x.id === u.id
+                              ? {
+                                  ...x,
+                                  nomeUtente: nome,
+                                  password: draft.password,
+                                  rankId: draft.rankId,
+                                }
+                              : x,
+                          ),
+                        })
+                      }}
+                    >
+                      Salva utente
+                    </button>
+                    <button
+                      type="button"
                       className="ares-btn small danger"
                       onClick={() =>
                         setImpostazioni({
@@ -777,6 +872,9 @@ export function Settings() {
                       Elimina
                     </button>
                   </div>
+                      </>
+                    )
+                  })()}
                 </li>
               ))}
             </ul>

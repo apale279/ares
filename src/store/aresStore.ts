@@ -358,7 +358,7 @@ export const useAresStore = create<AresState>()(
       updateEvento: (id, patch) =>
         set((s) => ({
           eventi: s.eventi.map((e) =>
-            e.id === id ? { ...e, ...patch } : e,
+            e.id === id && e.stato !== 'CHIUSO' ? { ...e, ...patch } : e,
           ),
         })),
 
@@ -455,6 +455,7 @@ export const useAresStore = create<AresState>()(
         set((s) => ({
           missioni: s.missioni.map((m) => {
             if (m.id !== missioneId) return m
+            if (m.stato === 'FINE_MISSIONE') return m
             const next = [...m.statoHistory]
             const row = next[historyIndex]
             if (!row) return m
@@ -468,7 +469,9 @@ export const useAresStore = create<AresState>()(
         const ts = nowIso()
         set((s) => {
           const cur = s.missioni.find((x) => x.id === missioneId)
-          if (!cur || cur.stato === stato) return s
+          if (!cur || cur.stato === stato || cur.stato === 'FINE_MISSIONE') return s
+          const ev = s.eventi.find((e) => e.id === cur.eventoId)
+          if (ev?.stato === 'CHIUSO') return s
           const missioni = s.missioni.map((m) => {
             if (m.id !== missioneId) return m
             const history = [...m.statoHistory, { stato, at: ts }]
@@ -515,6 +518,9 @@ export const useAresStore = create<AresState>()(
         set((s) => ({
           missioni: s.missioni.map((m) => {
             if (m.id !== missioneId) return m
+            if (m.stato === 'FINE_MISSIONE') return m
+            const ev = s.eventi.find((e) => e.id === m.eventoId)
+            if (ev?.stato === 'CHIUSO') return m
             const next: TrattaMissione = {
               id: `tratta_${crypto.randomUUID()}`,
               timestamp: payload?.timestamp ?? nowIso(),
@@ -530,6 +536,9 @@ export const useAresStore = create<AresState>()(
         set((s) => ({
           missioni: s.missioni.map((m) => {
             if (m.id !== missioneId) return m
+            if (m.stato === 'FINE_MISSIONE') return m
+            const ev = s.eventi.find((e) => e.id === m.eventoId)
+            if (ev?.stato === 'CHIUSO') return m
             return {
               ...m,
               tratte: (m.tratte ?? []).map((t) =>
@@ -543,6 +552,9 @@ export const useAresStore = create<AresState>()(
         set((s) => ({
           missioni: s.missioni.map((m) => {
             if (m.id !== missioneId) return m
+            if (m.stato === 'FINE_MISSIONE') return m
+            const ev = s.eventi.find((e) => e.id === m.eventoId)
+            if (ev?.stato === 'CHIUSO') return m
             return {
               ...m,
               tratte: (m.tratte ?? []).filter((t) => t.id !== trattaId),
@@ -560,7 +572,9 @@ export const useAresStore = create<AresState>()(
       requestMissionTelegramDispatch: (missioneId) =>
         set((s) => ({
           missioni: s.missioni.map((m) =>
-            m.id === missioneId
+            m.id === missioneId &&
+            m.stato !== 'FINE_MISSIONE' &&
+            s.eventi.find((e) => e.id === m.eventoId)?.stato !== 'CHIUSO'
               ? {
                   ...m,
                   telegramDispatchRequestedAt: `${nowIso()}_${Math.random()
@@ -581,6 +595,9 @@ export const useAresStore = create<AresState>()(
         const s = get()
         const m = s.missioni.find((x) => x.id === missioneId)
         if (!m) return
+        if (m.stato === 'FINE_MISSIONE') return
+        const ev = s.eventi.find((e) => e.id === m.eventoId)
+        if (ev?.stato === 'CHIUSO') return
         set({
           missioni: s.missioni.filter((x) => x.id !== missioneId),
           mezzi: s.mezzi.map((mz) =>
@@ -595,7 +612,11 @@ export const useAresStore = create<AresState>()(
       updateMissione: (missioneId, patch) =>
         set((s) => ({
           missioni: s.missioni.map((m) =>
-            m.id === missioneId ? { ...m, ...patch } : m,
+            m.id === missioneId &&
+            m.stato !== 'FINE_MISSIONE' &&
+            s.eventi.find((e) => e.id === m.eventoId)?.stato !== 'CHIUSO'
+              ? { ...m, ...patch }
+              : m,
           ),
         })),
 
