@@ -85,19 +85,83 @@ function isSupabaseConfigured(): boolean {
   )
 }
 
+async function readRemoteStateRow(): Promise<{
+  payload: unknown
+  updated_at: string | null
+} | null> {
+  const { data, error } = await supabase
+    .from('ares_state')
+    .select('payload, updated_at')
+    .eq('id', ROW_ID)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  return {
+    payload: data.payload as unknown,
+    updated_at: data.updated_at ?? null,
+  }
+}
+
+class RemoteConflictError extends Error {
+  constructor() {
+    super(
+      'Stato cloud aggiornato da un altro device. Ricarica la pagina per ottenere l’ultima versione prima di continuare.',
+    )
+    this.name = 'RemoteConflictError'
+  }
+}
+
 async function upsertPayloadString(raw: string): Promise<void> {
   const payload = JSON.parse(raw) as unknown
   const syncIso = new Date().toISOString()
+  const remote = await readRemoteStateRow()
+  const remoteUpdatedAt = remote?.updated_at ?? null
+
+  if (remoteUpdatedAt && (!lastSyncAt || remoteUpdatedAt !== lastSyncAt)) {
+    lastSyncAt = remoteUpdatedAt
+    for (const cb of syncListeners) cb(remoteUpdatedAt)
+    throw new RemoteConflictError()
+  }
+
   ignoreRealtimeUntil = Date.now() + 1200
-  const { error } = await supabase.from('ares_state').upsert(
-    {
-      id: ROW_ID,
+  if (!remoteUpdatedAt) {
+    const { error } = await supabase.from('ares_state').upsert(
+      {
+        id: ROW_ID,
+        payload,
+        updated_at: syncIso,
+      },
+      { onConflict: 'id' },
+    )
+    if (error) throw error
+    markSynced(syncIso)
+    return
+  }
+
+  const { data, error } = await supabase
+    .from('ares_state')
+    .update({
       payload,
       updated_at: syncIso,
-    },
-    { onConflict: 'id' },
-  )
+    })
+    .eq('id', ROW_ID)
+    .eq('updated_at', remoteUpdatedAt)
+    .select('updated_at')
+    .maybeSingle()
+
   if (error) throw error
+  if (!data?.updated_at) {
+    const latest = await readRemoteStateRow()
+    if (latest?.updated_at) {
+      lastSyncAt = latest.updated_at
+      for (const cb of syncListeners) cb(latest.updated_at)
+    }
+    throw new RemoteConflictError()
+  }
+  markSynced(data.updated_at)
+}
+
+function markSynced(syncIso: string) {
   lastSyncAt = syncIso
   lastRemoteError = null
   for (const cb of syncListeners) cb(syncIso)
@@ -109,16 +173,10 @@ export function createSupabaseJsonStorage(): StateStorageLike {
     getItem: async (_name: string): Promise<string | null> => {
       if (!isSupabaseConfigured()) return null
 
-      const { data, error } = await supabase
-        .from('ares_state')
-        .select('payload, updated_at')
-        .eq('id', ROW_ID)
-        .maybeSingle()
-
-      if (error) {
-        console.error('[Ares] Supabase getItem:', error.message)
+      const data = await readRemoteStateRow().catch((error) => {
+        console.error('[Ares] Supabase getItem:', error instanceof Error ? error.message : String(error))
         return null
-      }
+      })
 
       if (data?.payload != null) {
         if (data.updated_at) {
